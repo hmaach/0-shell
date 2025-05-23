@@ -6,7 +6,7 @@ use std::io;
 pub enum ShellError {
     IoError(std::io::Error),
     CommandNotFound(String),
-    InvalidArguments(String),
+    Other(String),
 }
 
 impl fmt::Display for ShellError {
@@ -14,7 +14,7 @@ impl fmt::Display for ShellError {
         match self {
             ShellError::IoError(err) => write!(f, "{}", err),
             ShellError::CommandNotFound(cmd) => write!(f, "command '{}' not found", cmd),
-            ShellError::InvalidArguments(arg) => write!(f, "invalid argument: {}", arg),
+            ShellError::Other(err) => write!(f, "{}", err)
         }
     }
 }

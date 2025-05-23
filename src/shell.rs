@@ -3,7 +3,7 @@ use std::{
     io::{Write, stdin, stdout},
 };
 
-use crate::utils;
+use crate::{commands::pwd::PwdCommand, utils};
 use crate::{
     commands::{Command, *},
     error::ShellError,
@@ -24,8 +24,8 @@ impl Shell {
     }
 
     fn register_commands(&mut self) {
-        self.commands
-            .insert("exit".to_owned(), Box::new(ExitCommand));
+        self.commands.insert("exit".to_owned(), Box::new(ExitCommand));
+        self.commands.insert("pwd".to_owned(), Box::new(PwdCommand));
     }
 
     pub fn run_loop(&mut self) {
