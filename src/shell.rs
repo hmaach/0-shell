@@ -28,6 +28,7 @@ impl Shell {
         self.commands.insert("pwd".to_owned(), Box::new(PwdCommand));
         self.commands.insert("echo".to_owned(), Box::new(EchoCommand));
         self.commands.insert("mkdir".to_owned(), Box::new(MkdirCommand));
+        self.commands.insert("cd".to_owned(), Box::new(CdCommand));
     }
 
     pub fn run_loop(&mut self) {
