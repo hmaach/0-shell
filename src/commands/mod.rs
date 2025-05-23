@@ -18,3 +18,4 @@ pub mod exit;
 pub use exit::ExitCommand;
 pub use pwd::PwdCommand;
 pub use echo::EchoCommand;
+pub use mkdir::MkdirCommand;

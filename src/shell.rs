@@ -27,6 +27,7 @@ impl Shell {
         self.commands.insert("exit".to_owned(), Box::new(ExitCommand));
         self.commands.insert("pwd".to_owned(), Box::new(PwdCommand));
         self.commands.insert("echo".to_owned(), Box::new(EchoCommand));
+        self.commands.insert("mkdir".to_owned(), Box::new(MkdirCommand));
     }
 
     pub fn run_loop(&mut self) {
