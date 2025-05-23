@@ -1,0 +1,18 @@
+use crate::error::ShellError;
+
+pub trait Command {
+    fn execute(&self, args: Vec<String>) -> Result<(), ShellError>;
+}
+
+pub mod pwd;
+pub mod cd;
+pub mod ls;
+pub mod mkdir;
+pub mod cat;
+pub mod cp;
+pub mod mv;
+pub mod rm;
+pub mod echo;
+pub mod exit;
+
+pub use exit::ExitCommand;
