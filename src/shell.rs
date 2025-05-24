@@ -1,6 +1,5 @@
 use std::{
-    collections::HashMap,
-    io::{Write, stdin, stdout},
+    collections::HashMap, env::current_dir, io::{stdin, stdout, Write}
 };
 
 use crate::utils;
@@ -36,7 +35,10 @@ impl Shell {
         println!("welcome to 01-shell");
 
         loop {
-            print!("$ ");
+            let path = current_dir().expect("error getting path");
+
+            print!("~{}$ ", path.display());
+            
             stdout().flush().expect("error flush stdout");
 
             let mut input = String::new();
