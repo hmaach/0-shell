@@ -1,9 +1,9 @@
-mod shell;
-mod parser;
 mod commands;
+mod error;
+mod shell;
 mod utils;
-mod errors;
 
 fn main() {
-    shell::run_shell();
+    let mut shell = shell::Shell::new();
+    shell.run_loop();
 }
