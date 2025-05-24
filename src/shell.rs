@@ -29,6 +29,7 @@ impl Shell {
         self.commands.insert("echo".to_owned(), Box::new(EchoCommand));
         self.commands.insert("mkdir".to_owned(), Box::new(MkdirCommand));
         self.commands.insert("cd".to_owned(), Box::new(CdCommand));
+        self.commands.insert("ls".to_owned(), Box::new(LsCommand));
     }
 
     pub fn run_loop(&mut self) {
