@@ -1,0 +1,4 @@
+=== echo command ====================
+echo "hello\nworld"
+echo "hello\nworld
+echo `hello\nworld`: Backticks (`) are used for command substitution in shells. 
