@@ -21,3 +21,4 @@ pub use echo::EchoCommand;
 pub use mkdir::MkdirCommand;
 pub use cd::CdCommand;
 pub use ls::LsCommand;
+pub use rm::RmCommand;
