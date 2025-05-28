@@ -6,15 +6,17 @@ use crate::error::*;
 pub struct LsCommand;
 
 impl Command for LsCommand {
-    fn execute(&self, _args: Vec<String>) -> Result<(), ShellError> {
+    fn execute(&self, args: Vec<String>) -> Result<(), ShellError> {
         let mut dir = "./";
+        let all_flag = args.contains(&"-a".to_string());
 
         let mut cleaned_paths: Vec<String> = fs::read_dir(dir)
             .unwrap()
             .filter_map(Result::ok)
             .filter_map(|entry| {
                 entry.path().to_str().and_then(|s| {
-                    if s.starts_with("./.") { // skip hiden files
+                    if s.starts_with("./.") && !all_flag {
+                        // skip hiden files
                         None
                     } else {
                         Some(s.strip_prefix("./").unwrap_or(s).to_string())
