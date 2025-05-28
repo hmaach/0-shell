@@ -13,9 +13,18 @@ impl Command for LsCommand {
 
         let mut cleaned_paths: Vec<String> = Vec::new();
 
-        if a_flag { // hard coding hhhhhhh
-            cleaned_paths.push(if f_flag { "./".to_string() } else { ".".to_string() });
-            cleaned_paths.push(if f_flag { "../".to_string() } else { "..".to_string() });
+        if a_flag {
+            // hard coding hhhhhhh
+            cleaned_paths.push(if f_flag {
+                "./".to_string()
+            } else {
+                ".".to_string()
+            });
+            cleaned_paths.push(if f_flag {
+                "../".to_string()
+            } else {
+                "..".to_string()
+            });
         }
 
         cleaned_paths.extend(
@@ -35,15 +44,19 @@ impl Command for LsCommand {
 
                     let mut str_name = path.file_name()?.to_str()?.to_string();
 
-                    if f_flag && path.is_dir()  {
+                    if f_flag && path.is_dir() {
                         str_name.push('/');
                     }
 
                     Some(str_name)
-                })
+                }),
         );
 
-        cleaned_paths.sort();
+        cleaned_paths.sort_by(|a, b| {
+            let a_clean = a.trim_start_matches('.');
+            let b_clean = b.trim_start_matches('.');
+            a_clean.to_uppercase().cmp(&b_clean.to_uppercase())
+        });
 
         for path in cleaned_paths {
             print!("{}  ", path);
