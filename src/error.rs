@@ -7,6 +7,7 @@ pub enum ShellError {
     IoError(std::io::Error),
     CommandNotFound(String),
     Backticks,
+    ArgsNotFound(String),
     Other(String),
 }
 
@@ -16,6 +17,7 @@ impl fmt::Display for ShellError {
             ShellError::IoError(err) => write!(f, "{}", err),
             ShellError::CommandNotFound(cmd) => write!(f, "command '{}' not found", cmd),
             ShellError::Backticks => write!(f, "command substitution with backticks (`) is not supported in our mini shell"),
+            ShellError::ArgsNotFound(cmd) => write!(f, "{}: missing file operand", cmd),
             ShellError::Other(err) => write!(f, "{}", err)
         }
     }
