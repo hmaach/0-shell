@@ -40,7 +40,14 @@ fn move_single_source(source: &Path, dest: &Path) -> Result<(), ShellError> {
     }
 
     if dest.is_dir() {
-        let dest = dest.join(source.file_name().unwrap());
+        if source == dest {
+            return Err(ShellError::Other(format!(
+                "mv: cannot move '{}' to a subdirectory of itself, '{}'",
+                source.display(),
+                dest.display()
+            )));
+        }
+        let dest = dest.join(source.file_name().expect("ffff"));
         fs::rename(source, dest)?;
     } else {
         if source == dest {
