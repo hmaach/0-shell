@@ -3,7 +3,8 @@ use std::path::PathBuf;
 
 use crate::commands::Command;
 use crate::error::*;
-use crate::utils::get_permission_string;
+use crate::utils::{get_permission_string, sort_vector};
+// use std::process;
 
 pub struct LsCommand;
 
@@ -70,18 +71,15 @@ impl Command for LsCommand {
 
 fn format_long_format(path: &PathBuf) -> String {
     let mut result = String::new();
+    // dbg!(get_permission_string1(path));
+    // dbg!(path.metadata().unwrap().permissions());
     let permission = get_permission_string(path);
     result.push_str(permission.as_str());
     result
 }
 
 fn print(result: &mut Vec<String>) {
-    result.sort_by(|a, b| {
-        // I need to test files that start with multy dots
-        let a_clean = a.trim_start_matches('.');
-        let b_clean = b.trim_start_matches('.');
-        a_clean.to_uppercase().cmp(&b_clean.to_uppercase())
-    });
+    sort_vector(result);
 
     if let Some(mut last) = result.pop() {
         if last.ends_with("\n") {
@@ -98,3 +96,20 @@ fn print(result: &mut Vec<String>) {
     }
     println!();
 }
+
+// fn get_permission_string1(path: &PathBuf) -> Option<String> {
+//     let output = process::Command::new("ls")
+//         .arg("-ld")
+//         .arg(path)
+//         .output()
+//         .ok()?;
+
+//     if output.status.success() {
+//         let stdout = String::from_utf8_lossy(&output.stdout);
+//         // First word is like -rw-r--r--
+//         let perms = stdout.split_whitespace().next()?.to_string();
+//         Some(perms)
+//     } else {
+//         None
+//     }
+// }

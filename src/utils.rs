@@ -43,3 +43,16 @@ pub fn get_permission_string(path: &PathBuf) -> String {
 
     result
 }
+
+pub fn sort_vector(vec: &mut Vec<String>) {
+    vec.sort_by(|a, b| {
+        let clean = |s: &str| {
+            s.chars()
+                .filter(|c| c.is_alphanumeric())
+                .collect::<String>()
+                .to_uppercase()
+        };
+
+        clean(a).cmp(&clean(b))
+    });
+}
