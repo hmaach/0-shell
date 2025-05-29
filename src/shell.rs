@@ -29,6 +29,7 @@ impl Shell {
         self.commands.insert("mkdir".to_owned(), Box::new(MkdirCommand));
         self.commands.insert("cd".to_owned(), Box::new(CdCommand));
         self.commands.insert("ls".to_owned(), Box::new(LsCommand));
+        self.commands.insert("rm".to_owned(), Box::new(RmCommand));
         self.commands.insert("mv".to_owned(), Box::new(MvCommand));
     }
 
