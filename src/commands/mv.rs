@@ -24,7 +24,7 @@ impl Command for MvCommand {
         let source_path = Path::new(&sources[0]);
 
         if sources.len() > 1 {
-            move_multiple_files(sources, dest_path)
+            move_multiple_sources(sources, dest_path)
         } else {
             move_single_source(source_path, dest_path)
         }
@@ -32,9 +32,16 @@ impl Command for MvCommand {
 }
 
 fn move_single_source(source: &Path, dest: &Path) -> Result<(), ShellError> {
+    if !source.exists() {
+        return Err(ShellError::Other(format!(
+            "mv: cannot stat '{}': No such file or directory",
+            source.to_str().unwrap()
+        )));
+    }
+
     if dest.is_dir() {
         let dest = dest.join(source.file_name().unwrap());
-        fs::rename(source, &dest)?;
+        fs::rename(source, dest)?;
     } else {
         fs::rename(source, dest)?;
     }
@@ -42,6 +49,34 @@ fn move_single_source(source: &Path, dest: &Path) -> Result<(), ShellError> {
     Ok(())
 }
 
-fn move_multiple_files(_sources: &[String], _dest: &Path) -> Result<(), ShellError> {
+fn move_multiple_sources(sources: &[String], dest: &Path) -> Result<(), ShellError> {
+    if !dest.is_dir() {
+        return Err(ShellError::Other(format!(
+            "mv: target '{}' is not a directory",
+            dest.to_str().unwrap()
+        )));
+    }
+
+    let mut errors = Vec::new();
+
+    for source in sources {
+        let source_path = Path::new(source);
+
+        if !source_path.exists() {
+            errors.push(format!(
+                "mv: cannot stat '{}': No such file or directory",
+                source_path.to_str().unwrap()
+            ));
+        }
+
+        let dest_dir = dest.join(source_path.file_name().unwrap());
+
+        fs::rename(source_path, dest_dir)?;
+    }
+
+    if !errors.is_empty() {
+        return Err(ShellError::Other(errors.join("\n")));
+    }
+
     Ok(())
 }
