@@ -67,7 +67,7 @@ impl Shell {
     }
 
     fn execute_command(&mut self, input: String) -> Result<(), ShellError> {
-        let (cmd, args) = parser::parse_command(input);
+        let (cmd, args) = parser::parse_command(input)?;
 
         if cmd.is_empty() {
             return Ok(());
