@@ -1,4 +1,6 @@
+use std::ffi::CStr;
 use std::fs;
+use std::os::unix::fs::MetadataExt;
 use std::path::PathBuf;
 
 use crate::commands::Command;
@@ -71,10 +73,29 @@ impl Command for LsCommand {
 
 fn format_long_format(path: &PathBuf) -> String {
     let mut result = String::new();
-    // dbg!(get_permission_string1(path));
-    // dbg!(path.metadata().unwrap().permissions());
     let permission = get_permission_string(path);
+    let len = path.metadata().unwrap().len().to_string();
+    let file_name = path.file_name().unwrap();
+    let (owner_name, group_name) = get_file_owner_and_group(path);
+    let n_link = path.metadata().unwrap().nlink().to_string();
+    let created_at: std::time::SystemTime = path.metadata().unwrap().created().unwrap().;
+
+    dbg!(created_at);
+
     result.push_str(permission.as_str());
+    result.push_str(" ");
+    result.push_str(n_link.as_str());
+    result.push_str(" ");
+    result.push_str(owner_name.as_str());
+    result.push_str(" ");
+    result.push_str(group_name.as_str());
+    result.push_str(" ");
+    result.push_str(len.as_str());
+    result.push_str(" ");
+    // result.push_str(created_at.to_str().unwrap());
+    // result.push_str(" ");
+    result.push_str(file_name.to_str().unwrap());
+
     result
 }
 
@@ -97,19 +118,32 @@ fn print(result: &mut Vec<String>) {
     println!();
 }
 
-// fn get_permission_string1(path: &PathBuf) -> Option<String> {
-//     let output = process::Command::new("ls")
-//         .arg("-ld")
-//         .arg(path)
-//         .output()
-//         .ok()?;
+fn get_file_owner_and_group(path: &PathBuf) -> (String, String) {
+    let metadata = fs::metadata(path).expect("Failed to get metadata");
+    let uid = metadata.uid();
+    let gid = metadata.gid();
 
-//     if output.status.success() {
-//         let stdout = String::from_utf8_lossy(&output.stdout);
-//         // First word is like -rw-r--r--
-//         let perms = stdout.split_whitespace().next()?.to_string();
-//         Some(perms)
-//     } else {
-//         None
-//     }
-// }
+    let username = unsafe {
+        let passwd = libc::getpwuid(uid);
+        if passwd.is_null() {
+            format!("UID({})", uid)
+        } else {
+            CStr::from_ptr((*passwd).pw_name)
+                .to_string_lossy()
+                .into_owned()
+        }
+    };
+
+    let groupname = unsafe {
+        let group = libc::getgrgid(gid);
+        if group.is_null() {
+            format!("GID({})", gid)
+        } else {
+            CStr::from_ptr((*group).gr_name)
+                .to_string_lossy()
+                .into_owned()
+        }
+    };
+
+    (username, groupname)
+}
