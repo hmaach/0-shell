@@ -23,3 +23,5 @@ pub use cd::CdCommand;
 pub use ls::LsCommand;
 pub use rm::RmCommand;
 pub use mv::MvCommand;
+pub use cp::CpCommand;
+pub use cat::CatCommand;

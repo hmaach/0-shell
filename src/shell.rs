@@ -2,7 +2,7 @@ use std::{
     collections::HashMap, env::current_dir, io::{stdin, stdout, Write}
 };
 
-use crate::utils;
+use crate::parser;
 use crate::{
     commands::{Command, *},
     error::ShellError,
@@ -31,6 +31,8 @@ impl Shell {
         self.commands.insert("ls".to_owned(), Box::new(LsCommand));
         self.commands.insert("rm".to_owned(), Box::new(RmCommand));
         self.commands.insert("mv".to_owned(), Box::new(MvCommand));
+        self.commands.insert("cp".to_owned(), Box::new(CpCommand));
+        self.commands.insert("cat".to_owned(), Box::new(CatCommand));
     }
 
     pub fn run_loop(&mut self) {
@@ -65,7 +67,7 @@ impl Shell {
     }
 
     fn execute_command(&mut self, input: String) -> Result<(), ShellError> {
-        let (cmd, args) = utils::parse_command(input);
+        let (cmd, args) = parser::parse_command(input);
 
         if cmd.is_empty() {
             return Ok(());
@@ -73,10 +75,7 @@ impl Shell {
 
         match self.commands.get(&cmd) {
             None => Err(ShellError::CommandNotFound(cmd)),
-            Some(command) => match command.execute(args) {
-                Ok(()) => Ok(()),
-                Err(err) => Err(err)
-            },
+            Some(command) => command.execute(args),
         }
     }
 }
