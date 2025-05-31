@@ -1,6 +1,3 @@
-use std::os::unix::fs::PermissionsExt;
-use std::{fs, path::PathBuf};
-
 pub fn parse_command(input: String) -> (String, Vec<String>) {
     let parts: Vec<&str> = input.trim().split_whitespace().collect();
 
@@ -14,45 +11,9 @@ pub fn parse_command(input: String) -> (String, Vec<String>) {
     (cmd, args)
 }
 
-pub fn get_permission_string(path: &PathBuf) -> String {
-    let metadata = fs::metadata(path).expect("Failed to get metadata");
-    let mode = metadata.permissions().mode();
-
-    let file_type = if metadata.is_dir() {
-        'd'
-    } else if metadata.file_type().is_symlink() {
-        'l'
-    } else {
-        '-'
-    };
-
-    let mut result = String::new();
-    result.push(file_type);
-
-    let bits = [
-        (mode >> 6) & 0b111, // user
-        (mode >> 3) & 0b111, // group
-        (mode >> 0) & 0b111, // others
-    ];
-
-    for &part in &bits {
-        result.push(if part & 0b100 != 0 { 'r' } else { '-' });
-        result.push(if part & 0b010 != 0 { 'w' } else { '-' });
-        result.push(if part & 0b001 != 0 { 'x' } else { '-' });
-    }
-
-    result
-}
-
-pub fn sort_vector(vec: &mut Vec<String>) {
-    vec.sort_by(|a, b| {
-        let clean = |s: &str| {
-            s.chars()
-                .filter(|c| c.is_alphanumeric())
-                .collect::<String>()
-                .to_uppercase()
-        };
-
-        clean(a).cmp(&clean(b))
-    });
+pub fn clean_string(s: String) -> String {
+    s.chars()
+        .filter(|c| c.is_alphanumeric())
+        .collect::<String>()
+        .to_uppercase()
 }
