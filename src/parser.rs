@@ -33,13 +33,11 @@ pub fn parse_command(input: String) -> Result<(String, Vec<String>), ShellError>
 
 fn parser(input: &str) -> Result<Vec<String>, ShellError> {
     let mut full_input = input.to_string();
-    let mut parts = Vec::new();
 
     loop {
         match parse(&full_input) {
             Ok(parsed_input) => {
-                parts = parsed_input;
-                break;
+                return Ok(parsed_input);
             }
 
             Err(_) => {
@@ -60,15 +58,13 @@ fn parser(input: &str) -> Result<Vec<String>, ShellError> {
             }
         }
     }
-
-    Ok(parts)
 }
 
 fn parse(input: &str) -> Result<Vec<String>, ParseState> {
     let mut result = Vec::new();
     let mut current_word = String::new();
     let mut state = ParseState::Normal;
-    let mut chars = input.chars().peekable();
+    let mut chars = input.chars();
 
     while let Some(ch) = chars.next() {
         match state {
@@ -108,7 +104,7 @@ fn parse(input: &str) -> Result<Vec<String>, ParseState> {
                             current_word.push(ch);
                         } else {
                             current_word.push('\\');
-                            current_word.push(ch);
+                            current_word.push(next_ch);
                         }
                     } else {
                         current_word.push('\\');
