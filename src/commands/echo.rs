@@ -9,75 +9,39 @@ impl Command for EchoCommand {
             println!();
             return Ok(());
         }
-        let processed_args: Result<Vec<String>, ShellError> =
-            args.iter().map(|arg| process_arg(arg)).collect();
 
-        match processed_args {
-            Ok(args) => {
-                let text = args.join(" ");
-                println!("{}", text);
-                Ok(())
-            }
-            Err(e) => Err(e),
-        }
+        let parsed_args = args.iter().map(|arg| process_escape(arg)).collect::<Vec<String>>().join(" ");
+
+        println!("{}", parsed_args);
+        Ok(())
     }
 }
 
-fn process_arg(arg: &str) -> Result<String, ShellError> {
-    if arg.contains('`') {
-        return Err(ShellError::Backticks);
-    }
-
-    if arg.starts_with('"') {
-        process_double_quote(arg)
-    } else if arg.starts_with('\'') {
-        process_single_quote(arg)
-    } else {
-        Ok(arg.to_string())
-    }
-}
-
-fn process_double_quote(arg: &str) -> Result<String, ShellError> {
-    if arg.len() < 2 {
-        return Err(ShellError::Other("Unclosed single quote".to_string()));
-    }
-
-    if !arg.ends_with('"') {
-        return Err(ShellError::Other("unclosed double quote".to_string()));
-    }
-
-    let chars: Vec<char> = arg.chars().collect();
+fn process_escape(arg: &str) -> String {
+    let mut chars = arg.chars();
     let mut result = String::new();
-    let mut i = 1;
 
-    while i < chars.len() - 1 {
-        if chars[i] == '\\' && i + 1 < chars.len() - 1 {
-            match chars[i + 1] {
-                '\\' => {
-                    result.push(chars[i]);
-                    i += 2;
+    while let Some(ch) = chars.next() {
+        match ch {
+            '\\' => {
+                if let Some(next_char) = chars.next() {
+                    match next_char {
+                        'n' => result.push('\n'),
+                        'r' => result.push('\r'),
+                        't' => result.push('\t'),
+                        '\\' => result.push('\\'),
+                        _ => {
+                            result.push('\\');
+                            result.push(next_char);
+                        }
+                    }
                 }
-                _ => i += 1,
             }
-        } else {
-            result.push(chars[i]);
-            i += 1;
+            _ => {
+                result.push(ch);
+            }
         }
     }
 
-    Ok(result)
-}
-
-fn process_single_quote(arg: &str) -> Result<String, ShellError> {
-    if arg.len() < 2 {
-        return Err(ShellError::Other("Unclosed single quote".to_string()));
-    }
-
-    if !arg.ends_with('\'') {
-        return Err(ShellError::Other("Unclosed single quote".to_string()));
-    }
-
-    let content: String = arg[1..arg.len() - 1].to_string();
-
-    Ok(content)
+    result
 }

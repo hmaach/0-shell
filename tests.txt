@@ -2,3 +2,43 @@
 echo "hello\nworld"
 echo "hello\nworld
 echo `hello\nworld`: Backticks (`) are used for command substitution in shells. 
+
+
+printf '[%s]\n' hello
+output: hello
+
+printf '[%s]\n' a\na
+output: ana
+
+printf '[%s]\n' a\\na
+output: a\na
+
+printf '[%s]\n' a\\\na
+output: a\na
+
+printf '[%s]\n' a\\\\na
+output: a\\na
+
+printf '[%s]\n' "aaaa"
+output: aaaa
+
+printf '[%s]\n' "aa\n aa"
+output: aa\n aa
+
+printf '[%s]\n' "aa\\n aa"
+output: aa\n aa
+
+printf '[%s]\n' "aa\\\n aa"
+output: aa\\n aa
+
+printf '[%s]\n' "aa\\\\n aa"
+output: aa\\n aa
+
+printf '[%s]\n' "aa\" aa"
+output: aa" aa
+
+printf '[%s]\n' 'aaaa'
+printf '[%s]\n' 'aa\n aa'
+printf '[%s]\n' 'aa\\n aa'
+printf '[%s]\n' 'aa\\\n aa'
+printf '[%s]\n' 'aa\' aa'
