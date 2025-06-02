@@ -60,7 +60,7 @@ fn parser(input: &str) -> Result<Vec<String>, ShellError> {
     }
 }
 
-fn parse(input: &str) -> Result<Vec<String>, ParseState> {
+fn parse(input: &str) -> Result<Vec<String>, ShellError> {
     let mut result = Vec::new();
     let mut current_word = String::new();
     let mut state = ParseState::Normal;
@@ -117,7 +117,7 @@ fn parse(input: &str) -> Result<Vec<String>, ParseState> {
 
     match state {
         ParseState::DoubleQuote | ParseState::SingleQuote => {
-            return Err(ParseState::DoubleQuote);
+            return Err(ShellError::Other("unclosed quote".to_string()));
         }
         ParseState::Normal => {
             if !current_word.is_empty() {
