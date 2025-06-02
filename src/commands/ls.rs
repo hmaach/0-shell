@@ -14,26 +14,43 @@ pub struct LsCommand;
 impl Command for LsCommand {
     fn execute(&self, args: Vec<String>) -> Result<(), ShellError> {
         let dir = "./";
-        let a_flag = args.contains(&"-a".to_string());
-        let f_flag = args.contains(&"-F".to_string());
-        let l_flag = args.contains(&"-l".to_string());
+
+        let (a_flag, f_flag, l_flag) = match parse_flags(&args) {
+            Ok(flags) => flags,
+            Err(err) => return Err(ShellError::Other(format!("ls: {}", err))),
+        };
 
         let mut result: Vec<Vec<String>> = Vec::new();
         let mut total_blocks: u64 = 0;
 
         if a_flag {
             if let Err(e) = add_dot_entries(&mut result, &mut total_blocks, &f_flag, &l_flag) {
-                eprintln!("Failed to add dot entries: {}", e);
+                eprintln!("ls: Failed to add dot entries: {}", e);
                 return Err(e);
             }
         }
 
-        let mut paths: Vec<_> = fs::read_dir(dir)
-            .unwrap()
-            .filter_map(Result::ok)
-            .filter(|path| {
+        let entries = match fs::read_dir(dir) {
+            Ok(e) => e,
+            Err(e) => {
+                return Err(ShellError::Other(format!(
+                    "ls: Failed to read directory: {}",
+                    e
+                )));
+            }
+        };
+
+        let mut paths: Vec<_> = entries
+            .filter_map(|entry| match entry {
+                Ok(e) => Some(e),
+                Err(e) => {
+                    eprintln!("ls: Failed to read entry: {}", e);
+                    None
+                }
+            })
+            .filter(|entry| {
                 if !a_flag {
-                    if let Some(name) = path.file_name().to_str() {
+                    if let Some(name) = entry.file_name().to_str() {
                         return !name.starts_with('.');
                     }
                 }
@@ -42,9 +59,9 @@ impl Command for LsCommand {
             .collect();
 
         paths.sort_by(|a, b| {
-            let a_name = a.file_name().to_string_lossy().to_uppercase();
-            let b_name = b.file_name().to_string_lossy().to_uppercase();
-            clean_string(a_name).cmp(&clean_string(b_name))
+            let a_name = clean_string(a.file_name().to_string_lossy().to_uppercase());
+            let b_name = clean_string(b.file_name().to_string_lossy().to_uppercase());
+            a_name.cmp(&b_name)
         });
 
         result.extend(paths.into_iter().filter_map(|entry| {
@@ -53,17 +70,28 @@ impl Command for LsCommand {
             if l_flag {
                 match get_detailed_file_info(&path, &mut total_blocks) {
                     Ok(info) => Some(info),
-                    Err(_) => None,
+                    Err(e) => {
+                        eprintln!("ls: Failed to get detailed info for {:?}: {}", path, e);
+                        None
+                    }
                 }
             } else {
-                let mut name = path.file_name()?.to_str()?.to_string();
+                let name_result = path.file_name().and_then(|s| s.to_str());
+                let mut name = match name_result {
+                    Some(s) => s.to_string(),
+                    None => {
+                        eprintln!("ls: Invalid UTF-8 file name for path: {:?}", path);
+                        return None;
+                    }
+                };
 
                 if path.is_dir() {
-                    name = format!("{}", colorize(&name, "blue", true));
+                    name = colorize(&name, "blue", true);
                     if f_flag {
                         name.push('/');
                     }
                 }
+
                 Some(vec![name])
             }
         }));
@@ -72,6 +100,35 @@ impl Command for LsCommand {
 
         Ok(())
     }
+}
+
+fn parse_flags(args: &Vec<String>) -> Result<(bool, bool, bool), ShellError> {
+    let mut a_flag = false;
+    let mut f_flag = false;
+    let mut l_flag = false;
+
+    for arg in args {
+        if !arg.starts_with('-') {
+            return Err(ShellError::Other(format!("Invalid argument: {:?}", arg)));
+        }
+
+        for ch in arg.chars().skip(1) {
+            // Skip the leading '-'
+            match ch {
+                'a' => a_flag = true,
+                'F' => f_flag = true,
+                'l' => l_flag = true,
+                _ => {
+                    return Err(ShellError::Other(format!(
+                        "Invalid flag: '{}', supported flags are: '-a', '-F', '-l'",
+                        ch
+                    )));
+                }
+            }
+        }
+    }
+
+    Ok((a_flag, f_flag, l_flag))
 }
 
 fn get_detailed_file_info(
