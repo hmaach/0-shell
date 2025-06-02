@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 use crate::commands::Command;
 use crate::error::*;
-use crate::utils::clean_string;
+use crate::utils::{clean_string, colorize};
 
 pub struct LsCommand;
 
@@ -57,8 +57,12 @@ impl Command for LsCommand {
                 }
             } else {
                 let mut name = path.file_name()?.to_str()?.to_string();
-                if f_flag && path.is_dir() {
-                    name.push('/');
+
+                if path.is_dir() {
+                    name = format!("{}", colorize(&name, "blue", true));
+                    if f_flag {
+                        name.push('/');
+                    }
                 }
                 Some(vec![name])
             }
@@ -84,13 +88,14 @@ fn get_detailed_file_info(
         .file_name()
         .and_then(|s| s.to_str())
         .map(|s| s.to_string())
-        .or_else(|| Some(path.to_string_lossy().to_string())) // handle when the path is . or ..
+        .or_else(|| Some(path.to_string_lossy().to_string())) // fallback for "." or ".."
         .ok_or_else(|| {
             ShellError::Other(format!("Unable to get file name for path: {:?}", path))
         })?;
 
     if path.is_dir() {
-        file_name.push('/');
+        let colored_name = colorize(&file_name, "blue", true);
+        file_name = format!("{}/", colored_name);
     }
 
     let (owner_name, group_name) = get_file_owner_and_group(&metadata);
@@ -204,15 +209,12 @@ fn add_dot_entries(
     f_flag: &bool,
     l_flag: &bool,
 ) -> Result<(), ShellError> {
-    let dot = if *f_flag {
-        "./".to_string()
-    } else {
-        ".".to_string()
-    };
-    let dotdot = if *f_flag {
-        "../".to_string()
-    } else {
-        "..".to_string()
+    let mut dot = format!("{}", colorize(".", "blue", true));
+    let mut dotdot = format!("{}", colorize("..", "blue", true));
+
+    if *f_flag {
+        dot.push('/');
+        dotdot.push('/');
     };
 
     if *l_flag {
