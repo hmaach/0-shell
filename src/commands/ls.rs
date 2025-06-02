@@ -4,8 +4,6 @@ use std::fs::{self, Metadata};
 use std::os::unix::fs::MetadataExt;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
-use std::result;
-use std::time::SystemTime;
 
 use crate::commands::Command;
 use crate::error::*;
@@ -20,7 +18,15 @@ impl Command for LsCommand {
         let f_flag = args.contains(&"-F".to_string());
         let l_flag = args.contains(&"-l".to_string());
 
-        let mut cleaned_paths: Vec<Vec<String>> = Vec::new();
+        let mut result: Vec<Vec<String>> = Vec::new();
+        let mut total_blocks: u64 = 0;
+
+        if a_flag {
+            if let Err(e) = add_dot_entries(&mut result, &mut total_blocks, &f_flag, &l_flag) {
+                eprintln!("Failed to add dot entries: {}", e);
+                return Err(e);
+            }
+        }
 
         let mut paths: Vec<_> = fs::read_dir(dir)
             .unwrap()
@@ -41,11 +47,14 @@ impl Command for LsCommand {
             clean_string(a_name).cmp(&clean_string(b_name))
         });
 
-        cleaned_paths.extend(paths.into_iter().filter_map(|entry| {
+        result.extend(paths.into_iter().filter_map(|entry| {
             let path = entry.path();
 
             if l_flag {
-                Some(get_detailed_file_info(&path))
+                match get_detailed_file_info(&path, &mut total_blocks) {
+                    Ok(info) => Some(info),
+                    Err(_) => None,
+                }
             } else {
                 let mut name = path.file_name()?.to_str()?.to_string();
                 if f_flag && path.is_dir() {
@@ -55,24 +64,52 @@ impl Command for LsCommand {
             }
         }));
 
-        print(&mut cleaned_paths, &l_flag);
+        print(&mut result, total_blocks, &l_flag);
 
         Ok(())
     }
 }
 
-fn get_detailed_file_info(path: &PathBuf) -> Vec<String> {
-    let metadata = path.metadata().unwrap();
-    let permission = get_permission_string(&metadata);
-    let len = metadata.len().to_string();
-    let file_name = path.file_name().unwrap().to_string_lossy().to_string();
-    let (owner_name, group_name) = get_file_owner_and_group(&metadata);
-    let n_link = metadata.nlink().to_string();
-    let created_at = get_created_at(&metadata);
+fn get_detailed_file_info(
+    path: &PathBuf,
+    total_blocks: &mut u64,
+) -> Result<Vec<String>, ShellError> {
+    let metadata = path.metadata()?;
 
-    vec![
-        permission, n_link, owner_name, group_name, len, created_at, file_name,
-    ]
+    let permission = get_permission_string(&metadata);
+
+    let len = metadata.len().to_string();
+
+    let mut file_name = path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_string())
+        .or_else(|| Some(path.to_string_lossy().to_string())) // handle when the path is . or ..
+        .ok_or_else(|| {
+            ShellError::Other(format!("Unable to get file name for path: {:?}", path))
+        })?;
+
+    if path.is_dir() {
+        file_name.push('/');
+    }
+
+    let (owner_name, group_name) = get_file_owner_and_group(&metadata);
+
+    let n_link = metadata.nlink().to_string();
+
+    let modified_at = get_modified_at(&metadata);
+
+    *total_blocks += metadata.blocks() / 2;
+
+    Ok(vec![
+        permission,
+        n_link,
+        owner_name,
+        group_name,
+        len,
+        modified_at,
+        file_name,
+    ])
 }
 
 fn format_detailed_file_info(max_lens: &HashMap<usize, usize>, path: &Vec<String>) -> String {
@@ -122,11 +159,14 @@ fn get_file_owner_and_group(metadata: &Metadata) -> (String, String) {
     (username, groupname)
 }
 
-fn get_created_at(metadata: &Metadata) -> String {
-    let created_at = metadata.created().unwrap_or(SystemTime::now());
-
-    let datetime: chrono::DateTime<chrono::Local> = created_at.into();
-    datetime.format("%b %d %H:%M").to_string()
+fn get_modified_at(metadata: &Metadata) -> String {
+    match metadata.modified() {
+        Ok(modified_at) => {
+            let datetime: chrono::DateTime<chrono::Local> = modified_at.into();
+            datetime.format("%b %e %H:%M").to_string()
+        }
+        Err(_) => "<invalid time>".to_string(),
+    }
 }
 
 pub fn get_permission_string(metadata: &Metadata) -> String {
@@ -158,7 +198,43 @@ pub fn get_permission_string(metadata: &Metadata) -> String {
     result
 }
 
-fn print(result: &mut Vec<Vec<String>>, is_long: &bool) {
+fn add_dot_entries(
+    result: &mut Vec<Vec<String>>,
+    total_blocks: &mut u64,
+    f_flag: &bool,
+    l_flag: &bool,
+) -> Result<(), ShellError> {
+    let dot = if *f_flag {
+        "./".to_string()
+    } else {
+        ".".to_string()
+    };
+    let dotdot = if *f_flag {
+        "../".to_string()
+    } else {
+        "..".to_string()
+    };
+
+    if *l_flag {
+        let dot_path = PathBuf::from(".");
+        let dotdot_path = PathBuf::from("..");
+
+        let mut dot_info = get_detailed_file_info(&dot_path, total_blocks)?;
+        let mut dotdot_info = get_detailed_file_info(&dotdot_path, total_blocks)?;
+
+        dot_info[6] = dot;
+        dotdot_info[6] = dotdot;
+
+        result.insert(0, dotdot_info);
+        result.insert(0, dot_info);
+    } else {
+        result.insert(0, vec![dotdot]);
+        result.insert(0, vec![dot]);
+    }
+    Ok(())
+}
+
+fn print(result: &mut Vec<Vec<String>>, total_blocks: u64, is_long: &bool) {
     let mut max_lens: HashMap<usize, usize> = HashMap::new();
 
     if *is_long {
@@ -171,6 +247,7 @@ fn print(result: &mut Vec<Vec<String>>, is_long: &bool) {
                 }
             }
         }
+        println!("total {total_blocks}");
     }
 
     for (i, path) in result.iter().enumerate() {
