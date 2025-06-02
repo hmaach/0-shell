@@ -1,7 +1,7 @@
 mod commands;
 mod error;
 mod shell;
-mod utils;
+mod parser;
 
 fn main() {
     let mut shell = shell::Shell::new();
