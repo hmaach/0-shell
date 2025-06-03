@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::ffi::CStr;
-use std::fs::{self, Metadata};
+use std::fs::{Metadata, read_dir};
 use std::os::unix::fs::MetadataExt;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
@@ -11,119 +11,189 @@ use crate::utils::{clean_string, colorize};
 
 pub struct LsCommand;
 
+#[derive(Clone)]
+struct Directory {
+    path: PathBuf,
+    entries: Vec<Vec<String>>,
+    total_blocks: u64,
+}
+
 impl Command for LsCommand {
     fn execute(&self, args: Vec<String>) -> Result<(), ShellError> {
-        let dir = "./";
+        let mut directories: Vec<PathBuf> = Vec::new();
+        let mut files: Vec<PathBuf> = Vec::new();
+        let mut file_result: Vec<Vec<String>> = Vec::new();
+        let mut dir_results: Vec<Directory> = Vec::new();
 
-        let (a_flag, f_flag, l_flag) = match parse_flags(&args) {
-            Ok(flags) => flags,
-            Err(err) => return Err(ShellError::Other(format!("ls: {}", err))),
-        };
+        let (a_flag, f_flag, l_flag) = parse_flags(&args, &mut directories, &mut files)?;
 
-        let mut result: Vec<Vec<String>> = Vec::new();
-        let mut total_blocks: u64 = 0;
+        // Default to current directory
+        if directories.is_empty() && files.is_empty() {
+            directories.push(PathBuf::from("."));
+        }
 
-        if a_flag {
-            if let Err(e) = add_dot_entries(&mut result, &mut total_blocks, &f_flag, &l_flag) {
-                eprintln!("ls: Failed to add dot entries: {}", e);
-                return Err(e);
+        // Handle files
+        for file in &files {
+            if l_flag {
+                match get_detailed_file_info(&file, None) {
+                    Ok(info) => file_result.push(info),
+                    Err(e) => eprintln!("ls: cannot access '{}': {}", file.display(), e),
+                }
+            } else {
+                let name = file.file_name().and_then(|s| s.to_str());
+                let name = match name {
+                    Some(s) => s.to_string(),
+                    None => {
+                        eprintln!("ls: Invalid UTF-8 file name: {}", file.display());
+                        continue;
+                    }
+                };
+                file_result.push(vec![name]);
             }
         }
 
-        let entries = match fs::read_dir(dir) {
-            Ok(e) => e,
-            Err(e) => {
-                return Err(ShellError::Other(format!(
-                    "ls: Failed to read directory: {}",
-                    e
-                )));
-            }
-        };
-
-        let mut paths: Vec<_> = entries
-            .filter_map(|entry| match entry {
-                Ok(e) => Some(e),
+        // Handle directories
+        for dir in directories.iter() {
+            let entries = match read_dir(&dir) {
+                Ok(e) => e,
                 Err(e) => {
-                    eprintln!("ls: Failed to read entry: {}", e);
-                    None
+                    eprintln!("ls: cannot open directory '{}': {}", dir.display(), e);
+                    continue;
                 }
-            })
-            .filter(|entry| {
-                if !a_flag {
-                    if let Some(name) = entry.file_name().to_str() {
-                        return !name.starts_with('.');
-                    }
+            };
+
+            let mut dir_entry_result: Vec<Vec<String>> = Vec::new();
+            let mut total_blocks: u64 = 0;
+
+            // Add dok zouj no9at
+            // if a_flag && *dir == PathBuf::from(".") {
+            if a_flag {
+                if let Err(e) =
+                    add_dot_entries(&mut dir_entry_result, &mut total_blocks, &f_flag, &l_flag)
+                {
+                    eprintln!("ls: Failed to add dot entries: {}", e);
                 }
-                true
-            })
-            .collect();
+            }
 
-        paths.sort_by(|a, b| {
-            let a_name = clean_string(a.file_name().to_string_lossy().to_uppercase());
-            let b_name = clean_string(b.file_name().to_string_lossy().to_uppercase());
-            a_name.cmp(&b_name)
-        });
-
-        result.extend(paths.into_iter().filter_map(|entry| {
-            let path = entry.path();
-
-            if l_flag {
-                match get_detailed_file_info(&path, &mut total_blocks) {
-                    Ok(info) => Some(info),
+            let mut paths: Vec<_> = entries
+                .filter_map(|entry| match entry {
+                    Ok(e) => Some(e),
                     Err(e) => {
-                        eprintln!("ls: Failed to get detailed info for {:?}: {}", path, e);
+                        eprintln!("ls: Failed to read entry: {}", e);
                         None
                     }
-                }
-            } else {
-                let name_result = path.file_name().and_then(|s| s.to_str());
-                let mut name = match name_result {
-                    Some(s) => s.to_string(),
-                    None => {
-                        eprintln!("ls: Invalid UTF-8 file name for path: {:?}", path);
-                        return None;
+                })
+                .filter(|entry| {
+                    if !a_flag {
+                        if let Some(name) = entry.file_name().to_str() {
+                            return !name.starts_with('.');
+                        }
                     }
-                };
+                    true
+                })
+                .collect();
 
-                if path.is_dir() {
-                    name = colorize(&name, "blue", true);
-                    if f_flag {
-                        name.push('/');
+            paths.sort_by(|a, b| {
+                let a_name = clean_string(a.file_name().to_string_lossy().to_uppercase());
+                let b_name = clean_string(b.file_name().to_string_lossy().to_uppercase());
+                a_name.cmp(&b_name)
+            });
+
+            for entry in paths {
+                let path = entry.path();
+
+                if l_flag {
+                    match get_detailed_file_info(&path, Some(&mut total_blocks)) {
+                        Ok(info) => dir_entry_result.push(info),
+                        Err(e) => eprintln!("ls: cannot access '{}': {}", path.display(), e),
                     }
-                }
+                } else {
+                    let name = path.file_name().and_then(|s| s.to_str());
+                    let mut name = match name {
+                        Some(s) => s.to_string(),
+                        None => {
+                            eprintln!("ls: Invalid UTF-8 file name: {}", path.display());
+                            continue;
+                        }
+                    };
 
-                Some(vec![name])
+                    if path.is_dir() {
+                        name = colorize(&name, "blue", true);
+                        if f_flag {
+                            name.push('/');
+                        }
+                    }
+
+                    dir_entry_result.push(vec![name]);
+                }
             }
-        }));
 
-        print(&mut result, total_blocks, &l_flag);
+            dir_results.push(Directory {
+                path: dir.clone(),
+                entries: dir_entry_result,
+                total_blocks: total_blocks,
+            });
+        }
+
+        // Print files
+        if !file_result.is_empty() {
+            print(&mut file_result, &l_flag);
+            if !dir_results.is_empty() {
+                println!();
+            }
+        }
+
+        // Print directories
+        for (i, mut dir) in dir_results.clone().into_iter().enumerate() {
+            if directories.len() + files.len() > 1 {
+                println!("{}:", dir.path.display());
+            }
+            println!("total {}:", dir.total_blocks);
+            print(&mut dir.entries, &l_flag);
+            if i < &dir_results.len() - 1 {
+                println!();
+            }
+        }
 
         Ok(())
     }
 }
 
-fn parse_flags(args: &Vec<String>) -> Result<(bool, bool, bool), ShellError> {
+fn parse_flags(
+    args: &Vec<String>,
+    directories: &mut Vec<PathBuf>,
+    files: &mut Vec<PathBuf>,
+) -> Result<(bool, bool, bool), ShellError> {
     let mut a_flag = false;
     let mut f_flag = false;
     let mut l_flag = false;
 
     for arg in args {
-        if !arg.starts_with('-') {
-            return Err(ShellError::Other(format!("Invalid argument: {:?}", arg)));
-        }
-
-        for ch in arg.chars().skip(1) {
-            // Skip the leading '-'
-            match ch {
-                'a' => a_flag = true,
-                'F' => f_flag = true,
-                'l' => l_flag = true,
-                _ => {
-                    return Err(ShellError::Other(format!(
-                        "Invalid flag: '{}', supported flags are: '-a', '-F', '-l'",
-                        ch
-                    )));
+        if arg.starts_with('-') {
+            for ch in arg.chars().skip(1) {
+                match ch {
+                    'a' => a_flag = true,
+                    'F' => f_flag = true,
+                    'l' => l_flag = true,
+                    _ => {
+                        return Err(ShellError::Other(format!(
+                            "invalid flag: '{}', supported flags are: '-a', '-F', '-l'",
+                            ch
+                        )));
+                    }
                 }
+            }
+        } else {
+            let path = PathBuf::from(arg);
+            if path.is_dir() {
+                directories.push(path);
+            } else if path.is_file() {
+                files.push(path);
+            } else {
+                return Err(ShellError::Other(format!(
+                    "cannot access {:?}: No such file or directory",
+                    arg
+                )));
             }
         }
     }
@@ -133,7 +203,7 @@ fn parse_flags(args: &Vec<String>) -> Result<(bool, bool, bool), ShellError> {
 
 fn get_detailed_file_info(
     path: &PathBuf,
-    total_blocks: &mut u64,
+    total_blocks: Option<&mut u64>,
 ) -> Result<Vec<String>, ShellError> {
     let metadata = path.metadata()?;
 
@@ -161,7 +231,9 @@ fn get_detailed_file_info(
 
     let modified_at = get_modified_at(&metadata);
 
-    *total_blocks += metadata.blocks() / 2;
+    if let Some(blocks) = total_blocks {
+        *blocks += metadata.blocks() / 2;
+    }
 
     Ok(vec![
         permission,
@@ -278,8 +350,8 @@ fn add_dot_entries(
         let dot_path = PathBuf::from(".");
         let dotdot_path = PathBuf::from("..");
 
-        let mut dot_info = get_detailed_file_info(&dot_path, total_blocks)?;
-        let mut dotdot_info = get_detailed_file_info(&dotdot_path, total_blocks)?;
+        let mut dot_info = get_detailed_file_info(&dot_path, Some(total_blocks))?;
+        let mut dotdot_info = get_detailed_file_info(&dotdot_path, Some(total_blocks))?;
 
         dot_info[6] = dot;
         dotdot_info[6] = dotdot;
@@ -293,7 +365,7 @@ fn add_dot_entries(
     Ok(())
 }
 
-fn print(result: &mut Vec<Vec<String>>, total_blocks: u64, is_long: &bool) {
+fn print(result: &mut Vec<Vec<String>>, is_long: &bool) {
     let mut max_lens: HashMap<usize, usize> = HashMap::new();
 
     if *is_long {
@@ -306,7 +378,6 @@ fn print(result: &mut Vec<Vec<String>>, total_blocks: u64, is_long: &bool) {
                 }
             }
         }
-        println!("total {total_blocks}");
     }
 
     for (i, path) in result.iter().enumerate() {
