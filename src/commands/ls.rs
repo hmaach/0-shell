@@ -214,7 +214,8 @@ fn get_detailed_file_info(
         file_name = format!("{}/", colored_name);
     }
 
-    let (owner_name, group_name) = get_file_owner_and_group(&metadata);
+    let (owner_name, group_name) = get_file_owner_and_group(&metadata)
+        .map_err(|e| ShellError::Other(format!("cannot access '{}': {}", path.display(), e)))?;
 
     let n_link = metadata.nlink().to_string();
 
@@ -253,33 +254,39 @@ fn format_detailed_file_info(max_lens: &HashMap<usize, usize>, path: &Vec<String
     result
 }
 
-fn get_file_owner_and_group(metadata: &Metadata) -> (String, String) {
+pub fn get_file_owner_and_group(metadata: &Metadata) -> Result<(String, String), ShellError> {
     let uid = metadata.uid();
     let gid = metadata.gid();
 
-    let username = unsafe {
+    unsafe {
         let passwd = libc::getpwuid(uid);
         if passwd.is_null() {
-            format!("UID({})", uid)
-        } else {
-            CStr::from_ptr((*passwd).pw_name)
-                .to_string_lossy()
-                .into_owned()
+            return Err(ShellError::Other(format!(
+                "Failed to get user name for UID({})",
+                uid
+            )));
         }
-    };
+        let username = CStr::from_ptr((*passwd).pw_name)
+            .to_str()
+            .map_err(|_| ShellError::Other(format!("Invalid UTF-8 in user name for UID({})", uid)))?
+            .to_string();
 
-    let groupname = unsafe {
         let group = libc::getgrgid(gid);
         if group.is_null() {
-            format!("GID({})", gid)
-        } else {
-            CStr::from_ptr((*group).gr_name)
-                .to_string_lossy()
-                .into_owned()
+            return Err(ShellError::Other(format!(
+                "Failed to get group name for GID({})",
+                gid
+            )));
         }
-    };
+        let groupname = CStr::from_ptr((*group).gr_name)
+            .to_str()
+            .map_err(|_| {
+                ShellError::Other(format!("Invalid UTF-8 in group name for GID({})", gid))
+            })?
+            .to_string();
 
-    (username, groupname)
+        Ok((username, groupname))
+    }
 }
 
 fn get_modified_at(metadata: &Metadata) -> String {
