@@ -38,13 +38,9 @@ impl Command for LsCommand {
                 file_result.push(info);
             } else {
                 let name = file
-                    .file_name()
-                    .and_then(|s| s.to_str())
+                    .to_str()
                     .ok_or_else(|| {
-                        ShellError::Other(format!(
-                            "ls: Invalid UTF-8 file name: {}",
-                            file.display()
-                        ))
+                        ShellError::Other(format!("ls: Invalid UTF-8 path: {}", file.display()))
                     })?
                     .to_string();
 
@@ -137,7 +133,11 @@ impl Command for LsCommand {
             if directories.len() + files.len() > 1 {
                 println!("{}:", dir.path.display());
             }
-            println!("total {}:", dir.total_blocks);
+
+            if l_flag {
+                println!("total {}:", dir.total_blocks);
+            }
+
             print(&mut dir.entries, &l_flag);
             if i < directories.len() - 1 {
                 println!();
