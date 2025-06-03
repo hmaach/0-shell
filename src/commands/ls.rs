@@ -27,7 +27,6 @@ impl Command for LsCommand {
 
         let (a_flag, f_flag, l_flag) = parse_flags(&args, &mut directories, &mut files)?;
 
-        // Default to current directory
         if directories.is_empty() && files.is_empty() {
             directories.push(PathBuf::from("."));
         }
@@ -35,54 +34,46 @@ impl Command for LsCommand {
         // Handle files
         for file in &files {
             if l_flag {
-                match get_detailed_file_info(&file, None) {
-                    Ok(info) => file_result.push(info),
-                    Err(e) => eprintln!("ls: cannot access '{}': {}", file.display(), e),
-                }
+                let info = get_detailed_file_info(&file, None)?;
+                file_result.push(info);
             } else {
-                let name = file.file_name().and_then(|s| s.to_str());
-                let name = match name {
-                    Some(s) => s.to_string(),
-                    None => {
-                        eprintln!("ls: Invalid UTF-8 file name: {}", file.display());
-                        continue;
-                    }
-                };
+                let name = file
+                    .file_name()
+                    .and_then(|s| s.to_str())
+                    .ok_or_else(|| {
+                        ShellError::Other(format!(
+                            "ls: Invalid UTF-8 file name: {}",
+                            file.display()
+                        ))
+                    })?
+                    .to_string();
+
                 file_result.push(vec![name]);
             }
         }
 
         // Handle directories
         for dir in directories.iter() {
-            let entries = match read_dir(&dir) {
-                Ok(e) => e,
-                Err(e) => {
-                    eprintln!("ls: cannot open directory '{}': {}", dir.display(), e);
-                    continue;
-                }
-            };
+            let entries = read_dir(&dir).map_err(|e| {
+                ShellError::Other(format!(
+                    "ls: cannot open directory '{}': {}",
+                    dir.display(),
+                    e
+                ))
+            })?;
 
             let mut dir_entry_result: Vec<Vec<String>> = Vec::new();
             let mut total_blocks: u64 = 0;
 
-            // Add dok zouj no9at
-            // if a_flag && *dir == PathBuf::from(".") {
             if a_flag {
-                if let Err(e) =
-                    add_dot_entries(&mut dir_entry_result, &mut total_blocks, &f_flag, &l_flag)
-                {
-                    eprintln!("ls: Failed to add dot entries: {}", e);
-                }
+                add_dot_entries(&mut dir_entry_result, &mut total_blocks, &f_flag, &l_flag)
+                    .map_err(|e| {
+                        ShellError::Other(format!("ls: Failed to add dot entries: {}", e))
+                    })?;
             }
 
             let mut paths: Vec<_> = entries
-                .filter_map(|entry| match entry {
-                    Ok(e) => Some(e),
-                    Err(e) => {
-                        eprintln!("ls: Failed to read entry: {}", e);
-                        None
-                    }
-                })
+                .filter_map(|entry| entry.ok())
                 .filter(|entry| {
                     if !a_flag {
                         if let Some(name) = entry.file_name().to_str() {
@@ -101,21 +92,20 @@ impl Command for LsCommand {
 
             for entry in paths {
                 let path = entry.path();
-
                 if l_flag {
-                    match get_detailed_file_info(&path, Some(&mut total_blocks)) {
-                        Ok(info) => dir_entry_result.push(info),
-                        Err(e) => eprintln!("ls: cannot access '{}': {}", path.display(), e),
-                    }
+                    let info = get_detailed_file_info(&path, Some(&mut total_blocks))?;
+                    dir_entry_result.push(info);
                 } else {
-                    let name = path.file_name().and_then(|s| s.to_str());
-                    let mut name = match name {
-                        Some(s) => s.to_string(),
-                        None => {
-                            eprintln!("ls: Invalid UTF-8 file name: {}", path.display());
-                            continue;
-                        }
-                    };
+                    let mut name = path
+                        .file_name()
+                        .and_then(|s| s.to_str())
+                        .ok_or_else(|| {
+                            ShellError::Other(format!(
+                                "ls: Invalid UTF-8 file name: {}",
+                                path.display()
+                            ))
+                        })?
+                        .to_string();
 
                     if path.is_dir() {
                         name = colorize(&name, "blue", true);
@@ -131,7 +121,7 @@ impl Command for LsCommand {
             dir_results.push(Directory {
                 path: dir.clone(),
                 entries: dir_entry_result,
-                total_blocks: total_blocks,
+                total_blocks,
             });
         }
 
@@ -143,14 +133,13 @@ impl Command for LsCommand {
             }
         }
 
-        // Print directories
-        for (i, mut dir) in dir_results.clone().into_iter().enumerate() {
+        for (i, mut dir) in dir_results.into_iter().enumerate() {
             if directories.len() + files.len() > 1 {
                 println!("{}:", dir.path.display());
             }
             println!("total {}:", dir.total_blocks);
             print(&mut dir.entries, &l_flag);
-            if i < &dir_results.len() - 1 {
+            if i < directories.len() - 1 {
                 println!();
             }
         }
