@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 use crate::commands::Command;
 use crate::error::*;
-use crate::utils::{clean_string, colorize};
+use crate::utils::{Color, clean_string, colorize};
 
 pub struct LsCommand;
 
@@ -104,7 +104,7 @@ impl Command for LsCommand {
                         .to_string();
 
                     if path.is_dir() {
-                        name = colorize(&name, "blue", true);
+                        name = colorize(&name, Color::Blue, true);
                         if f_flag {
                             name.push('/');
                         }
@@ -210,7 +210,7 @@ fn get_detailed_file_info(
         })?;
 
     if path.is_dir() {
-        let colored_name = colorize(&file_name, "blue", true);
+        let colored_name = colorize(&file_name, Color::Blue, true);
         file_name = format!("{}/", colored_name);
     }
 
@@ -334,8 +334,8 @@ fn add_dot_entries(
     f_flag: &bool,
     l_flag: &bool,
 ) -> Result<(), ShellError> {
-    let mut dot = format!("{}", colorize(".", "blue", true));
-    let mut dotdot = format!("{}", colorize("..", "blue", true));
+    let mut dot = format!("{}", colorize(".", Color::Blue, true));
+    let mut dotdot = format!("{}", colorize("..", Color::Blue, true));
 
     if *f_flag {
         dot.push('/');

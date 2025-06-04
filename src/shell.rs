@@ -1,8 +1,8 @@
 use std::{
-    collections::HashMap, env::current_dir, io::{stdin, stdout, Write}
+    collections::HashMap, env::current_dir, io::{stdin, stdout, Write}, path::PathBuf
 };
 
-use crate::parser;
+use crate::{parser, utils::{print_cur_dir, print_welcome}};
 use crate::{
     commands::{Command, *},
     error::ShellError,
@@ -36,12 +36,12 @@ impl Shell {
     }
 
     pub fn run_loop(&mut self) {
-        println!("welcome to 01-shell");
+        print_welcome();
 
         loop {
-            let path = current_dir().expect("error getting path");
+            let path: PathBuf = current_dir().expect("error getting path");
 
-            print!("~{}$ ", path.display());
+            print_cur_dir(path);
             
             stdout().flush().expect("error flush stdout");
 
