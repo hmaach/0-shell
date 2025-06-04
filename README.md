@@ -4,9 +4,7 @@ This is a minimalist Unix-like shell written in Rust.
 
 ## Authors
 
-- Hamza Khlifi
 - Yassine El mach
-- Hamza El Azzouzi
 - Hamza Maach
 
 ## About
