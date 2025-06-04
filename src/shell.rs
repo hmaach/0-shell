@@ -1,11 +1,16 @@
 use std::{
-    collections::HashMap, env::current_dir, io::{stdin, stdout, Write}, path::PathBuf
+    collections::HashMap,
+    env::current_dir,
+    io::{Write, stdin, stdout},
 };
 
-use crate::{parser, utils::{print_cur_dir, print_welcome}};
 use crate::{
     commands::{Command, *},
     error::ShellError,
+};
+use crate::{
+    parser,
+    utils::{print_cur_dir, print_welcome},
 };
 
 pub struct Shell {
@@ -23,10 +28,13 @@ impl Shell {
     }
 
     fn register_commands(&mut self) {
-        self.commands.insert("exit".to_owned(), Box::new(ExitCommand));
+        self.commands
+            .insert("exit".to_owned(), Box::new(ExitCommand));
         self.commands.insert("pwd".to_owned(), Box::new(PwdCommand));
-        self.commands.insert("echo".to_owned(), Box::new(EchoCommand));
-        self.commands.insert("mkdir".to_owned(), Box::new(MkdirCommand));
+        self.commands
+            .insert("echo".to_owned(), Box::new(EchoCommand));
+        self.commands
+            .insert("mkdir".to_owned(), Box::new(MkdirCommand));
         self.commands.insert("cd".to_owned(), Box::new(CdCommand));
         self.commands.insert("ls".to_owned(), Box::new(LsCommand));
         self.commands.insert("rm".to_owned(), Box::new(RmCommand));
@@ -39,11 +47,19 @@ impl Shell {
         print_welcome();
 
         loop {
-            let path: PathBuf = current_dir().expect("error getting path");
+            match current_dir() {
+                Ok(path) => {
+                    print_cur_dir(path);
+                }
+                Err(e) => {
+                    eprintln!("Error getting current directory: {}", e);
+                    print!("~$ ");
+                }
+            }
 
-            print_cur_dir(path);
-            
-            stdout().flush().expect("error flush stdout");
+            if let Err(e) = stdout().flush() {
+                eprintln!("Error flushing stdout: {}", e);
+            }
 
             let mut input = String::new();
             match stdin().read_line(&mut input) {
@@ -56,7 +72,7 @@ impl Shell {
 
                     match self.execute_command(input) {
                         Err(err) => println!("{}", err),
-                        _ => ()
+                        _ => (),
                     }
                 }
                 Err(error) => {
