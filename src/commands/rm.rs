@@ -15,8 +15,15 @@ impl Command for RmCommand {
         let mut targets = Vec::new();
 
         for arg in args {
-            if arg == "-r" {
-                recursive = true;
+            if arg.starts_with("-") {
+                if arg == "-r" {
+                    recursive = true;
+                } else {
+                    return Err(ShellError::Other(format!(
+                        "rm: invalid option -- '{}'",
+                        arg
+                    )));
+                }
             } else {
                 targets.push(arg);
             }
