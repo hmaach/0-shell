@@ -7,6 +7,7 @@ use std::path::PathBuf;
 
 use crate::commands::Command;
 use crate::error::*;
+use crate::utils::{clean_string, colorize};
 
 pub struct LsCommand;
 
@@ -358,28 +359,6 @@ fn add_dot_entries(
         result.insert(0, vec![dot]);
     }
     Ok(())
-}
-
-pub fn clean_string(s: String) -> String {
-    s.chars()
-        .filter(|c| c.is_alphanumeric())
-        .collect::<String>()
-        .to_uppercase()
-}
-
-pub fn colorize(text: &str, color: &str, bold: bool) -> String {
-    // Map color names to ANSI color codes
-    let color_code = match color.to_lowercase().as_str() {
-        "red" => 31,
-        "green" => 32,
-        "blue" => 34,
-        _ => 37,
-    };
-
-    let bold_code = if bold { "1;" } else { "" };
-
-    // Format the string with ANSI escape codes
-    format!("\x1b[{}{}m{}\x1b[0m", bold_code, color_code, text)
 }
 
 fn print(result: &mut Vec<Vec<String>>, is_long: &bool) {
