@@ -1,3 +1,4 @@
+use std::{env, fs};
 use std::io::stdin;
 
 use crate::commands::Command;
@@ -14,10 +15,32 @@ impl Command for CatCommand {
                     eprintln!("cat: error reading the input: {}", e);
                     continue;
                 }
-                
+
                 print!("{}", &input);
             }
         } else {
+            let cur_dir = env::current_dir().map_err(|e| {
+                ShellError::Other(format!("cat: failed to get current directory: {}", e))
+            })?;
+
+            for arg in args {
+                let path = cur_dir.join(&arg);
+                if path.is_file() {
+                    let contents = match fs::read_to_string(path) {
+                        Ok(c) => c,
+                        Err(e) => {
+                            eprintln!("cat: error reading file content '{}': {}", arg, e);
+                            continue;
+                        }
+                    };
+
+                    println!("{}%", contents);
+                } else if path.is_dir() {
+                    eprintln!("cat: src: Is a directory");
+                } else {
+                    eprintln!("cat: {}: No such file or directory", arg);
+                }
+            }
         }
         Ok(())
     }
