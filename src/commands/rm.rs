@@ -33,7 +33,9 @@ impl Command for RmCommand {
             return Err(ShellError::Other("missing operand".into()));
         }
 
-        let cur_dir = env::current_dir().unwrap();
+        let cur_dir = env::current_dir().map_err(|e| {
+            ShellError::Other(format!("rm: failed to get current directory: {}", e))
+        })?;
 
         for elem in targets {
             if elem == "." || elem == ".." {
