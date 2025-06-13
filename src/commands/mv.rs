@@ -47,8 +47,16 @@ fn move_single_source(source: &Path, dest: &Path) -> Result<(), ShellError> {
                 dest.display()
             )));
         }
-        let dest = dest.join(source.file_name().expect("ffff"));
-        fs::rename(source, dest)?;
+
+        match source.file_name() {
+            Some(file_name) => {
+                let dest = dest.join(file_name);
+                fs::rename(source, dest)?;
+            }
+            _ => {
+                fs::rename(source, dest)?;
+            }
+        }
     } else {
         if source == dest {
             return Err(ShellError::Other(format!(
@@ -79,13 +87,19 @@ fn move_multiple_sources(sources: &[String], dest: &Path) -> Result<(), ShellErr
         if !source_path.exists() {
             errors.push(format!(
                 "mv: cannot stat '{}': No such file or directory",
-                source_path.to_str().unwrap()
+                source_path.display()
             ));
         }
 
-        let dest_dir = dest.join(source_path.file_name().unwrap());
-
-        fs::rename(source_path, dest_dir)?;
+        match source_path.file_name() {
+            Some(file_name) => {
+                let dest_path = dest.join(file_name);
+                fs::rename(source_path, dest_path)?;
+            }
+            _ => {
+                fs::rename(source_path, dest)?;
+            }
+        }
     }
 
     if !errors.is_empty() {
