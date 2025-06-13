@@ -36,44 +36,43 @@ impl Command for RmCommand {
         let cur_dir = env::current_dir().unwrap();
 
         for elem in targets {
-            if elem.eq(".") || elem.eq("..") {
-                return Err(ShellError::Other(format!(
+            if elem == "." || elem == ".." {
+                eprintln!(
                     "rm: refusing to remove '.' or '..' directory: skipping '{}'",
                     elem
-                )));
+                );
+                continue;
             }
 
             let path = cur_dir.join(&elem);
             if !path.exists() {
-                return Err(ShellError::Other(format!(
-                    "rm: cannot remove '{}': No such file or directory",
-                    elem
-                )));
+                eprintln!("rm: cannot remove '{}': No such file or directory", elem);
+                continue;
             }
 
             if path.is_file() {
-                fs::remove_file(&path).map_err(|e| {
-                    ShellError::Other(format!("failed to remove file '{}': {}", elem, e))
-                })?;
+                if let Err(e) = fs::remove_file(&path) {
+                    eprintln!("rm: failed to remove file '{}': {}", elem, e);
+                }
             } else if path.is_dir() {
                 if recursive {
-                    fs::remove_dir_all(&path).map_err(|e| {
-                        ShellError::Other(format!(
-                            "failed to remove directory recursively '{}': {}",
+                    if let Err(e) = fs::remove_dir_all(&path) {
+                        eprintln!(
+                            "rm: failed to remove directory recursively '{}': {}",
                             elem, e
-                        ))
-                    })?;
+                        );
+                    }
                 } else {
-                    return Err(ShellError::Other(format!(
-                        "cannot remove '{}': Is a directory. Use -r to remove recursively.",
+                    eprintln!(
+                        "rm: cannot remove '{}': Is a directory. Use -r to remove recursively.",
                         elem
-                    )));
+                    );
                 }
             } else {
-                return Err(ShellError::Other(format!(
+                eprintln!(
                     "rm: cannot remove '{}': Not a regular file or directory",
                     elem
-                )));
+                );
             }
         }
 
