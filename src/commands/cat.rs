@@ -1,5 +1,5 @@
-use std::{env, fs};
 use std::io::stdin;
+use std::{env, fs};
 
 use crate::commands::Command;
 use crate::error::*;
@@ -11,12 +11,20 @@ impl Command for CatCommand {
         if args.is_empty() {
             loop {
                 let mut input = String::new();
-                if let Err(e) = stdin().read_line(&mut input) {
-                    eprintln!("cat: error reading the input: {}", e);
-                    continue;
-                }
 
-                print!("{}", &input);
+                match stdin().read_line(&mut input) {
+                    Ok(0) => {
+                        println!("CTRL + D exit...");
+                        break;
+                    }
+                    Ok(_) => {
+                        print!("{}", &input);
+                    }
+                    Err(e) => {
+                        eprintln!("cat: error reading the input: {}", e);
+                        continue;
+                    }
+                };
             }
         } else {
             let cur_dir = env::current_dir().map_err(|e| {
