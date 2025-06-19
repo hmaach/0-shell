@@ -89,8 +89,13 @@ impl Command for LsCommand {
             for entry in paths {
                 let path = entry.path();
                 if l_flag {
-                    let info = get_detailed_file_info(&path, Some(&mut total_blocks))?;
-                    dir_entry_result.push(info);
+                    match get_detailed_file_info(&path, Some(&mut total_blocks)) {
+                        Ok(info) => dir_entry_result.push(info),
+                        Err(e) => {
+                            eprintln!("{}", e);
+                            continue;
+                        }
+                    }
                 } else {
                     let mut name = path
                         .file_name()
