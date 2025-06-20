@@ -38,7 +38,7 @@ impl Command for RmCommand {
         })?;
 
         for elem in targets {
-            if elem == "." || elem == ".." {
+            if elem == "." || elem == ".." || elem == "./." || elem == "./.." {
                 eprintln!(
                     "rm: refusing to remove '.' or '..' directory: skipping '{}'",
                     elem
