@@ -1,0 +1,146 @@
+// ls/processor.rs
+
+use std::fs::read_dir;
+use std::path::PathBuf;
+
+use crate::commands::ls::command::Directory;
+use crate::commands::ls::formatter::add_dot_entries;
+use crate::error::ShellError;
+use crate::utils::{Color, clean_string, colorize};
+
+use super::file_info::get_detailed_file_info;
+
+pub struct LsProcessor;
+
+impl LsProcessor {
+    pub fn process_files(
+        files: &[PathBuf],
+        l_flag: &bool,
+        file_result: &mut Vec<Vec<String>>,
+    ) -> Result<(), ShellError> {
+        for file in files {
+            if *l_flag {
+                let info = get_detailed_file_info(file, None)?;
+                file_result.push(info);
+            } else {
+                let name = file
+                    .to_str()
+                    .ok_or_else(|| {
+                        ShellError::Other(format!("ls: Invalid UTF-8 path: {}", file.display()))
+                    })?
+                    .to_string();
+
+                file_result.push(vec![name]);
+            }
+        }
+        Ok(())
+    }
+
+    pub fn process_directories(
+        directories: &[PathBuf],
+        a_flag: &bool,
+        f_flag: &bool,
+        l_flag: &bool,
+        dir_results: &mut Vec<Directory>,
+    ) -> Result<(), ShellError> {
+        for dir in directories {
+            let entries = read_dir(dir).map_err(|e| {
+                ShellError::Other(format!(
+                    "ls: cannot open directory '{}': {}",
+                    dir.display(),
+                    e
+                ))
+            })?;
+
+            let mut dir_entry_result: Vec<Vec<String>> = Vec::new();
+            let mut total_blocks: u64 = 0;
+
+            // Add dot entries if -a flag is set
+            if *a_flag {
+                add_dot_entries(&mut dir_entry_result, &mut total_blocks, f_flag, l_flag).map_err(
+                    |e| ShellError::Other(format!("ls: Failed to add dot entries: {}", e)),
+                )?;
+            }
+
+            // Process directory entries
+            Self::process_directory_entries(
+                entries,
+                a_flag,
+                f_flag,
+                l_flag,
+                &mut dir_entry_result,
+                &mut total_blocks,
+            )?;
+
+            dir_results.push(Directory {
+                path: dir.clone(),
+                entries: dir_entry_result,
+                total_blocks,
+            });
+        }
+        Ok(())
+    }
+
+    fn process_directory_entries(
+        entries: std::fs::ReadDir,
+        a_flag: &bool,
+        f_flag: &bool,
+        l_flag: &bool,
+        dir_entry_result: &mut Vec<Vec<String>>,
+        total_blocks: &mut u64,
+    ) -> Result<(), ShellError> {
+        let mut paths: Vec<_> = entries
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| {
+                if !*a_flag {
+                    if let Some(name) = entry.file_name().to_str() {
+                        return !name.starts_with('.');
+                    }
+                }
+                true
+            })
+            .collect();
+
+        // Sort entries
+        paths.sort_by(|a, b| {
+            let a_name = clean_string(a.file_name().to_string_lossy().to_uppercase());
+            let b_name = clean_string(b.file_name().to_string_lossy().to_uppercase());
+            a_name.cmp(&b_name)
+        });
+
+        // Process each entry
+        for entry in paths {
+            let path = entry.path();
+            if *l_flag {
+                match get_detailed_file_info(&path, Some(total_blocks)) {
+                    Ok(info) => dir_entry_result.push(info),
+                    Err(e) => {
+                        eprintln!("{}", e);
+                        continue;
+                    }
+                }
+            } else {
+                let mut name = path
+                    .file_name()
+                    .and_then(|s| s.to_str())
+                    .ok_or_else(|| {
+                        ShellError::Other(format!(
+                            "ls: Invalid UTF-8 file name: {}",
+                            path.display()
+                        ))
+                    })?
+                    .to_string();
+
+                if path.is_dir() {
+                    name = colorize(&name, Color::Blue, true);
+                    if *f_flag {
+                        name.push('/');
+                    }
+                }
+
+                dir_entry_result.push(vec![name]);
+            }
+        }
+        Ok(())
+    }
+}
