@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use crate::commands::ls::command::Directory;
 
 use super::formatter::print;
@@ -10,8 +8,8 @@ impl LsOutput {
     pub fn print_results(
         file_result: &Vec<Vec<String>>,
         dir_results: &Vec<Directory>,
-        directories: &[PathBuf],
-        files: &[PathBuf],
+        directories_length: &usize,
+        files_length: &usize,
         l_flag: &bool,
     ) {
         // Print files
@@ -25,7 +23,7 @@ impl LsOutput {
 
         // Print directories
         for (i, dir) in dir_results.iter().enumerate() {
-            if directories.len() + files.len() > 1 {
+            if directories_length + files_length > 1 {
                 println!("{}:", dir.path.display());
             }
 
@@ -35,11 +33,9 @@ impl LsOutput {
 
             let mut entries_clone = dir.entries.clone();
             print(&mut entries_clone, l_flag);
-            if i < directories.len() - 1 {
+            if i < directories_length - 1 {
                 println!();
             }
         }
     }
 }
-
-

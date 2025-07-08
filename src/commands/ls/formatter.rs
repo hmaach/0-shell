@@ -24,8 +24,8 @@ pub fn add_dot_entries(
         let dot_path = PathBuf::from(".");
         let dotdot_path = PathBuf::from("..");
 
-        let mut dot_info = get_detailed_file_info(&dot_path, Some(total_blocks))?;
-        let mut dotdot_info = get_detailed_file_info(&dotdot_path, Some(total_blocks))?;
+        let mut dot_info = get_detailed_file_info(&dot_path, Some(total_blocks), f_flag)?;
+        let mut dotdot_info = get_detailed_file_info(&dotdot_path, Some(total_blocks), f_flag)?;
 
         dot_info[6] = dot;
         dotdot_info[6] = dotdot;
@@ -38,7 +38,6 @@ pub fn add_dot_entries(
     }
     Ok(())
 }
-
 
 pub fn format_detailed_file_info(max_lens: &HashMap<usize, usize>, path: &Vec<String>) -> String {
     let mut result = String::new();

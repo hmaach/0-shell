@@ -7,7 +7,7 @@ use crate::error::ShellError;
 
 use super::parser::parse_flags;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Directory {
     pub path: PathBuf,
     pub entries: Vec<Vec<String>>,
@@ -32,7 +32,7 @@ impl Command for LsCommand {
         }
 
         // Process files and directories
-        LsProcessor::process_files(&files, &l_flag, &mut file_result)?;
+        LsProcessor::process_files(&files, &l_flag, &f_flag, &mut file_result)?;
         LsProcessor::process_directories(
             &directories,
             &a_flag,
@@ -42,7 +42,13 @@ impl Command for LsCommand {
         )?;
 
         // Print results
-        LsOutput::print_results(&file_result, &dir_results, &directories, &files, &l_flag);
+        LsOutput::print_results(
+            &file_result,
+            &dir_results,
+            &directories.len(),
+            &files.len(),
+            &l_flag,
+        );
 
         Ok(())
     }

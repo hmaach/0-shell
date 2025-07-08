@@ -9,6 +9,7 @@ use std::os::unix::fs::PermissionsExt;
 pub fn get_detailed_file_info(
     path: &PathBuf,
     total_blocks: Option<&mut u64>,
+    f_flag: &bool,
 ) -> Result<Vec<String>, ShellError> {
     let metadata = path.metadata()?;
 
@@ -27,7 +28,10 @@ pub fn get_detailed_file_info(
 
     if path.is_dir() {
         let colored_name = colorize(&file_name, Color::Blue, true);
-        file_name = format!("{}/", colored_name);
+        file_name = format!("{}", colored_name);
+        if *f_flag {
+            file_name.push('/');
+        }
     }
 
     let (owner_name, group_name) = get_file_owner_and_group(&metadata)
@@ -125,4 +129,3 @@ pub fn get_modified_at(metadata: &Metadata) -> String {
         Err(_) => "<invalid time>".to_string(),
     }
 }
-

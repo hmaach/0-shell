@@ -16,11 +16,12 @@ impl LsProcessor {
     pub fn process_files(
         files: &[PathBuf],
         l_flag: &bool,
+        f_flag: &bool,
         file_result: &mut Vec<Vec<String>>,
     ) -> Result<(), ShellError> {
         for file in files {
             if *l_flag {
-                let info = get_detailed_file_info(file, None)?;
+                let info = get_detailed_file_info(file, None, f_flag)?;
                 file_result.push(info);
             } else {
                 let name = file
@@ -112,7 +113,7 @@ impl LsProcessor {
         for entry in paths {
             let path = entry.path();
             if *l_flag {
-                match get_detailed_file_info(&path, Some(total_blocks)) {
+                match get_detailed_file_info(&path, Some(total_blocks), f_flag) {
                     Ok(info) => dir_entry_result.push(info),
                     Err(e) => {
                         eprintln!("{}", e);
@@ -133,9 +134,9 @@ impl LsProcessor {
 
                 if path.is_dir() {
                     name = colorize(&name, Color::Blue, true);
-                    if *f_flag {
-                        name.push('/');
-                    }
+                    // if *f_flag {
+                    //     name.push('/');
+                    // }
                 }
 
                 dir_entry_result.push(vec![name]);
