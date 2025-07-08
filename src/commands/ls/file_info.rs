@@ -1,3 +1,7 @@
+use chrono::TimeZone;
+use chrono::Utc;
+use chrono::{DateTime, Duration};
+use chrono_tz::Africa::Casablanca;
 use std::{ffi::CStr, path::PathBuf};
 
 use crate::commands::ls::formatter::format_path;
@@ -12,7 +16,7 @@ pub fn get_detailed_file_info(
     total_blocks: Option<&mut u64>,
     flags: &Flag,
 ) -> Result<Vec<String>, ShellError> {
-    let metadata = path.metadata()?;
+    let metadata = path.symlink_metadata()?;
 
     let permission = get_permission_string(&metadata);
 
@@ -27,7 +31,12 @@ pub fn get_detailed_file_info(
             ShellError::Other(format!("Unable to get file name for path: {:?}", path))
         })?;
 
-    format_path(path, &mut file_name, flags)?;
+    let _ = format_path(path, &mut file_name, flags);
+
+    // let file_name: String = match format_path(path, &mut file_name, flags) {
+    //     Ok(_) => file_name,
+    //     Err(_) => colorize(&file_name, Color::Red, false),
+    // };
 
     let (owner_name, group_name) = get_file_owner_and_group(&metadata)
         .map_err(|e| ShellError::Other(format!("cannot access '{}': {}", path.display(), e)))?;
@@ -118,8 +127,22 @@ pub fn get_file_owner_and_group(metadata: &Metadata) -> Result<(String, String),
 pub fn get_modified_at(metadata: &Metadata) -> String {
     match metadata.modified() {
         Ok(modified_at) => {
-            let datetime: chrono::DateTime<chrono::Local> = modified_at.into();
-            datetime.format("%b %e %H:%M").to_string()
+            // Convert system time to UTC first
+            let datetime_utc: DateTime<Utc> = modified_at.into();
+
+            // Convert to Casablanca timezone
+            let datetime = Casablanca.from_utc_datetime(&datetime_utc.naive_utc());
+
+            // Get current time in Casablanca
+            let now = Casablanca.from_utc_datetime(&Utc::now().naive_utc());
+            let six_months_ago = now - Duration::days(30 * 6);
+
+            // Compare and format
+            if datetime > six_months_ago {
+                datetime.format("%b %e %H:%M").to_string()
+            } else {
+                datetime.format("%b %e  %Y").to_string()
+            }
         }
         Err(_) => "<invalid time>".to_string(),
     }
