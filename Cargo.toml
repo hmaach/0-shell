@@ -5,4 +5,5 @@ edition = "2024"
 
 [dependencies]
 chrono = "0.4.41"
+colored = "3.0.0"
 libc = "0.2"
