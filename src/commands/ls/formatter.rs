@@ -90,7 +90,7 @@ pub fn print(result: &mut Vec<Vec<String>>, flags: &Flag) {
 }
 
 pub fn format_path(path: &PathBuf, file_name: &mut String, flags: &Flag) -> Result<(), ShellError> {
-    let metadata = path.metadata()?;
+    let metadata = path.symlink_metadata()?;
     let mode = metadata.permissions().mode();
 
     if path.is_dir() {
@@ -106,10 +106,13 @@ pub fn format_path(path: &PathBuf, file_name: &mut String, flags: &Flag) -> Resu
             file_name.push('@');
         }
         if flags.l {
-            let target = fs::read_link(path)?;
+            let target: PathBuf = fs::read_link(path)?;
+            let mut target_str = target.to_string_lossy().to_string();
+
+            format_path(&target, &mut target_str, flags)?; // colorize the *target* name
 
             file_name.push_str(" -> ");
-            file_name.push_str(&target.to_string_lossy());
+            file_name.push_str(&target_str);
         }
     } else if mode & 0o111 != 0 {
         let colored_name = colorize(&file_name, Color::Green, true);
