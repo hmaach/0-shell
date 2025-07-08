@@ -1,12 +1,11 @@
-// ls/processor.rs
-
 use std::fs::read_dir;
 use std::path::PathBuf;
 
 use crate::commands::ls::command::Directory;
-use crate::commands::ls::formatter::add_dot_entries;
+use crate::commands::ls::formatter::{add_dot_entries, format_path};
+use crate::commands::ls::parser::Flag;
 use crate::error::ShellError;
-use crate::utils::{Color, clean_string, colorize};
+use crate::utils::clean_string;
 
 use super::file_info::get_detailed_file_info;
 
@@ -15,13 +14,12 @@ pub struct LsProcessor;
 impl LsProcessor {
     pub fn process_files(
         files: &[PathBuf],
-        l_flag: &bool,
-        f_flag: &bool,
+        flags: &Flag,
         file_result: &mut Vec<Vec<String>>,
     ) -> Result<(), ShellError> {
         for file in files {
-            if *l_flag {
-                let info = get_detailed_file_info(file, None, f_flag)?;
+            if flags.l {
+                let info = get_detailed_file_info(file, None, flags)?;
                 file_result.push(info);
             } else {
                 let name = file
@@ -39,9 +37,7 @@ impl LsProcessor {
 
     pub fn process_directories(
         directories: &[PathBuf],
-        a_flag: &bool,
-        f_flag: &bool,
-        l_flag: &bool,
+        flags: &Flag,
         dir_results: &mut Vec<Directory>,
     ) -> Result<(), ShellError> {
         for dir in directories {
@@ -57,18 +53,16 @@ impl LsProcessor {
             let mut total_blocks: u64 = 0;
 
             // Add dot entries if -a flag is set
-            if *a_flag {
-                add_dot_entries(&mut dir_entry_result, &mut total_blocks, f_flag, l_flag).map_err(
-                    |e| ShellError::Other(format!("ls: Failed to add dot entries: {}", e)),
-                )?;
+            if flags.a {
+                add_dot_entries(&mut dir_entry_result, &mut total_blocks, flags).map_err(|e| {
+                    ShellError::Other(format!("ls: Failed to add dot entries: {}", e))
+                })?;
             }
 
             // Process directory entries
             Self::process_directory_entries(
                 entries,
-                a_flag,
-                f_flag,
-                l_flag,
+                flags,
                 &mut dir_entry_result,
                 &mut total_blocks,
             )?;
@@ -84,16 +78,14 @@ impl LsProcessor {
 
     fn process_directory_entries(
         entries: std::fs::ReadDir,
-        a_flag: &bool,
-        f_flag: &bool,
-        l_flag: &bool,
+        flags: &Flag,
         dir_entry_result: &mut Vec<Vec<String>>,
         total_blocks: &mut u64,
     ) -> Result<(), ShellError> {
         let mut paths: Vec<_> = entries
             .filter_map(|entry| entry.ok())
             .filter(|entry| {
-                if !*a_flag {
+                if !flags.a {
                     if let Some(name) = entry.file_name().to_str() {
                         return !name.starts_with('.');
                     }
@@ -112,8 +104,8 @@ impl LsProcessor {
         // Process each entry
         for entry in paths {
             let path = entry.path();
-            if *l_flag {
-                match get_detailed_file_info(&path, Some(total_blocks), f_flag) {
+            if flags.l {
+                match get_detailed_file_info(&path, Some(total_blocks), flags) {
                     Ok(info) => dir_entry_result.push(info),
                     Err(e) => {
                         eprintln!("{}", e);
@@ -132,12 +124,7 @@ impl LsProcessor {
                     })?
                     .to_string();
 
-                if path.is_dir() {
-                    name = colorize(&name, Color::Blue, true);
-                    // if *f_flag {
-                    //     name.push('/');
-                    // }
-                }
+                format_path(&path, &mut name, flags)?;
 
                 dir_entry_result.push(vec![name]);
             }

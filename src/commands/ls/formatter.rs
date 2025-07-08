@@ -1,5 +1,7 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::os::unix::fs::PermissionsExt;
+use std::{collections::HashMap, fs, path::PathBuf};
 
+use crate::commands::ls::parser::Flag;
 use crate::{
     commands::ls::file_info::get_detailed_file_info,
     error::ShellError,
@@ -9,23 +11,22 @@ use crate::{
 pub fn add_dot_entries(
     result: &mut Vec<Vec<String>>,
     total_blocks: &mut u64,
-    f_flag: &bool,
-    l_flag: &bool,
+    flags: &Flag,
 ) -> Result<(), ShellError> {
     let mut dot = format!("{}", colorize(".", Color::Blue, true));
     let mut dotdot = format!("{}", colorize("..", Color::Blue, true));
 
-    if *f_flag {
+    if flags.f {
         dot.push('/');
         dotdot.push('/');
     };
 
-    if *l_flag {
+    if flags.l {
         let dot_path = PathBuf::from(".");
         let dotdot_path = PathBuf::from("..");
 
-        let mut dot_info = get_detailed_file_info(&dot_path, Some(total_blocks), f_flag)?;
-        let mut dotdot_info = get_detailed_file_info(&dotdot_path, Some(total_blocks), f_flag)?;
+        let mut dot_info = get_detailed_file_info(&dot_path, Some(total_blocks), flags)?;
+        let mut dotdot_info = get_detailed_file_info(&dotdot_path, Some(total_blocks), flags)?;
 
         dot_info[6] = dot;
         dotdot_info[6] = dotdot;
@@ -57,10 +58,10 @@ pub fn format_detailed_file_info(max_lens: &HashMap<usize, usize>, path: &Vec<St
     result
 }
 
-pub fn print(result: &mut Vec<Vec<String>>, is_long: &bool) {
+pub fn print(result: &mut Vec<Vec<String>>, flags: &Flag) {
     let mut max_lens: HashMap<usize, usize> = HashMap::new();
 
-    if *is_long {
+    if flags.l {
         for path in result.iter() {
             for (i, field) in path.iter().enumerate() {
                 let len = field.len();
@@ -73,7 +74,7 @@ pub fn print(result: &mut Vec<Vec<String>>, is_long: &bool) {
     }
 
     for (i, path) in result.iter().enumerate() {
-        if *is_long {
+        if flags.l {
             println!("{}", format_detailed_file_info(&max_lens, path));
         } else {
             print!("{}", path[0]);
@@ -83,7 +84,39 @@ pub fn print(result: &mut Vec<Vec<String>>, is_long: &bool) {
         }
     }
 
-    if !*is_long {
+    if !flags.l {
         println!();
     }
+}
+
+pub fn format_path(path: &PathBuf, file_name: &mut String, flags: &Flag) -> Result<(), ShellError> {
+    let metadata = path.metadata()?;
+    let mode = metadata.permissions().mode();
+
+    if path.is_dir() {
+        let colored_name = colorize(&file_name, Color::Blue, true);
+        *file_name = format!("{}", colored_name);
+        if flags.f {
+            file_name.push('/');
+        }
+    } else if path.is_symlink() {
+        let colored_name = colorize(&file_name, Color::SkyBlue, true);
+        *file_name = format!("{}", colored_name);
+        if flags.f && !flags.l {
+            file_name.push('@');
+        }
+        if flags.l {
+            let target = fs::read_link(path)?;
+
+            file_name.push_str(" -> ");
+            file_name.push_str(&target.to_string_lossy());
+        }
+    } else if mode & 0o111 != 0 {
+        let colored_name = colorize(&file_name, Color::Green, true);
+        *file_name = format!("{}", colored_name);
+        if flags.f {
+            file_name.push('*');
+        }
+    }
+    Ok(())
 }

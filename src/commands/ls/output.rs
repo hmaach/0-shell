@@ -1,4 +1,4 @@
-use crate::commands::ls::command::Directory;
+use crate::commands::ls::{command::Directory, parser::Flag};
 
 use super::formatter::print;
 
@@ -10,12 +10,12 @@ impl LsOutput {
         dir_results: &Vec<Directory>,
         directories_length: &usize,
         files_length: &usize,
-        l_flag: &bool,
+        flags: &Flag,
     ) {
         // Print files
         if !file_result.is_empty() {
             let mut file_result_clone = file_result.clone();
-            print(&mut file_result_clone, l_flag);
+            print(&mut file_result_clone, flags);
             if !dir_results.is_empty() {
                 println!();
             }
@@ -27,12 +27,12 @@ impl LsOutput {
                 println!("{}:", dir.path.display());
             }
 
-            if *l_flag {
+            if flags.l {
                 println!("total {}:", dir.total_blocks);
             }
 
             let mut entries_clone = dir.entries.clone();
-            print(&mut entries_clone, l_flag);
+            print(&mut entries_clone, flags);
             if i < directories_length - 1 {
                 println!();
             }

@@ -1,7 +1,8 @@
 use std::{ffi::CStr, path::PathBuf};
 
-use crate::utils::colorize;
-use crate::{error::ShellError, utils::Color};
+use crate::commands::ls::formatter::format_path;
+use crate::commands::ls::parser::Flag;
+use crate::error::ShellError;
 use std::fs::Metadata;
 use std::os::unix::fs::MetadataExt;
 use std::os::unix::fs::PermissionsExt;
@@ -9,7 +10,7 @@ use std::os::unix::fs::PermissionsExt;
 pub fn get_detailed_file_info(
     path: &PathBuf,
     total_blocks: Option<&mut u64>,
-    f_flag: &bool,
+    flags: &Flag,
 ) -> Result<Vec<String>, ShellError> {
     let metadata = path.metadata()?;
 
@@ -26,13 +27,7 @@ pub fn get_detailed_file_info(
             ShellError::Other(format!("Unable to get file name for path: {:?}", path))
         })?;
 
-    if path.is_dir() {
-        let colored_name = colorize(&file_name, Color::Blue, true);
-        file_name = format!("{}", colored_name);
-        if *f_flag {
-            file_name.push('/');
-        }
-    }
+    format_path(path, &mut file_name, flags)?;
 
     let (owner_name, group_name) = get_file_owner_and_group(&metadata)
         .map_err(|e| ShellError::Other(format!("cannot access '{}': {}", path.display(), e)))?;
