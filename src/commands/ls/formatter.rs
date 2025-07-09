@@ -1,4 +1,5 @@
 use std::os::unix::fs::PermissionsExt;
+use std::path::Path;
 use std::{collections::HashMap, fs, path::PathBuf};
 
 use crate::commands::ls::parser::Flag;
@@ -93,33 +94,76 @@ pub fn format_path(path: &PathBuf, file_name: &mut String, flags: &Flag) -> Resu
     let metadata = path.symlink_metadata()?;
     let mode = metadata.permissions().mode();
 
-    if path.is_dir() {
-        let colored_name = colorize(&file_name, Color::Blue, true);
-        *file_name = format!("{}", colored_name);
-        if flags.f {
-            file_name.push('/');
-        }
-    } else if path.is_symlink() {
-        let colored_name = colorize(&file_name, Color::SkyBlue, true);
-        *file_name = format!("{}", colored_name);
-        if flags.f && !flags.l {
-            file_name.push('@');
-        }
-        if flags.l {
-            let target: PathBuf = fs::read_link(path)?;
+    if path.is_symlink() {
+        return format_symlink(path, file_name, flags);
+    } else if path.is_dir() {
+        colorize_dir(file_name, flags);
+        return Ok(());
+    }
+
+    if is_executable(mode) {
+        colorize_executable(file_name, flags);
+    }
+
+    Ok(())
+}
+
+fn is_executable(mode: u32) -> bool {
+    mode & 0o111 != 0
+}
+
+fn colorize_dir(file_name: &mut String, flags: &Flag) {
+    *file_name = colorize(file_name, Color::Blue, true);
+    if flags.f {
+        file_name.push('/');
+    }
+}
+
+fn colorize_executable(file_name: &mut String, flags: &Flag) {
+    *file_name = colorize(file_name, Color::Green, true);
+    if flags.f {
+        file_name.push('*');
+    }
+}
+
+fn format_symlink(path: &PathBuf, file_name: &mut String, flags: &Flag) -> Result<(), ShellError> {
+    let is_broken = fs::metadata(path).is_err();
+
+    let color = if is_broken {
+        Color::Red
+    } else {
+        Color::SkyBlue
+    };
+
+    *file_name = colorize(file_name, color, true);
+
+    if flags.f && !flags.l {
+        file_name.push('@');
+    }
+
+    if flags.l {
+        if let Ok(target) = fs::read_link(path) {
+            let full_target_path = if target.is_absolute() {
+                target.clone()
+            } else {
+                path.parent().unwrap_or_else(|| Path::new("")).join(&target)
+            };
+
             let mut target_str = target.to_string_lossy().to_string();
 
-            format_path(&target, &mut target_str, flags)?; // colorize the *target* name
+            if fs::metadata(&full_target_path).is_err() {
+                target_str = colorize(&target_str, Color::Red, true);
+            } else if !target.is_symlink() {
+                let _ = format_path(&full_target_path, &mut target_str, flags);
+            }
 
             file_name.push_str(" -> ");
             file_name.push_str(&target_str);
-        }
-    } else if mode & 0o111 != 0 {
-        let colored_name = colorize(&file_name, Color::Green, true);
-        *file_name = format!("{}", colored_name);
-        if flags.f {
-            file_name.push('*');
+        } else {
+            file_name.push_str(" -> ");
+            file_name.push_str(&colorize("invalid symlink", Color::Red, true));
         }
     }
+
     Ok(())
 }
