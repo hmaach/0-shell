@@ -1,15 +1,12 @@
-use chrono::TimeZone;
-use chrono::Utc;
-use chrono::{DateTime, Duration};
+use chrono::{DateTime, Duration, TimeZone, Utc};
 use chrono_tz::Africa::Casablanca;
+use std::fs::Metadata;
+use std::os::unix::fs::{FileTypeExt, MetadataExt, PermissionsExt};
 use std::{ffi::CStr, path::PathBuf};
 
 use crate::commands::ls::formatter::format_path;
 use crate::commands::ls::parser::Flag;
 use crate::error::ShellError;
-use std::fs::Metadata;
-use std::os::unix::fs::MetadataExt;
-use std::os::unix::fs::PermissionsExt;
 
 pub fn get_detailed_file_info(
     path: &PathBuf,
@@ -32,11 +29,6 @@ pub fn get_detailed_file_info(
         })?;
 
     let _ = format_path(path, &mut file_name, flags);
-
-    // let file_name: String = match format_path(path, &mut file_name, flags) {
-    //     Ok(_) => file_name,
-    //     Err(_) => colorize(&file_name, Color::Red, false),
-    // };
 
     let (owner_name, group_name) = get_file_owner_and_group(&metadata)
         .map_err(|e| ShellError::Other(format!("cannot access '{}': {}", path.display(), e)))?;
@@ -63,16 +55,21 @@ pub fn get_detailed_file_info(
 pub fn get_permission_string(metadata: &Metadata) -> String {
     let mode = metadata.permissions().mode();
 
-    let file_type = if metadata.is_dir() {
+    let file_type = metadata.file_type();
+    let file_type_char = if file_type.is_dir() {
         'd'
-    } else if metadata.file_type().is_symlink() {
+    } else if file_type.is_symlink() {
         'l'
+    } else if file_type.is_char_device() {
+        'c'
+    } else if file_type.is_block_device() {
+        'b'
     } else {
         '-'
     };
 
     let mut result = String::new();
-    result.push(file_type);
+    result.push(file_type_char);
 
     let bits = [
         (mode >> 6) & 0b111, // user
