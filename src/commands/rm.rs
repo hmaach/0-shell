@@ -38,7 +38,7 @@ impl Command for RmCommand {
         })?;
 
         for elem in targets {
-            if elem == "." || elem == ".." || elem == "./." || elem == "./.." {
+            if elem.chars().all(|c| c == '.' || c == '/') {
                 eprintln!(
                     "rm: refusing to remove '.' or '..' directory: skipping '{}'",
                     elem
