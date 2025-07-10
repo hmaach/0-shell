@@ -1,13 +1,13 @@
-use std::fs::read_dir;
-use std::path::PathBuf;
+use std::{fs::read_dir, path::PathBuf};
 
-use crate::commands::ls::command::Directory;
-use crate::commands::ls::formatter::{add_dot_entries, format_path};
-use crate::commands::ls::parser::Flag;
-use crate::error::ShellError;
-use crate::utils::clean_string;
+use super::{
+    Directory,
+    file_info::get_detailed_file_info,
+    formatter::{add_dot_entries, format_path},
+    parser::Flag,
+};
 
-use super::file_info::get_detailed_file_info;
+use crate::{error::ShellError, utils::clean_string};
 
 pub struct LsProcessor;
 
@@ -52,14 +52,12 @@ impl LsProcessor {
             let mut dir_entry_result: Vec<Vec<String>> = Vec::new();
             let mut total_blocks: u64 = 0;
 
-            // Add dot entries if -a flag is set
             if flags.a {
                 add_dot_entries(&mut dir_entry_result, &mut total_blocks, flags).map_err(|e| {
                     ShellError::Other(format!("ls: Failed to add dot entries: {}", e))
                 })?;
             }
 
-            // Process directory entries
             Self::process_directory_entries(
                 entries,
                 flags,
@@ -94,14 +92,12 @@ impl LsProcessor {
             })
             .collect();
 
-        // Sort entries
         paths.sort_by(|a, b| {
             let a_name = clean_string(a.file_name().to_string_lossy().to_uppercase());
             let b_name = clean_string(b.file_name().to_string_lossy().to_uppercase());
             a_name.cmp(&b_name)
         });
 
-        // Process each entry
         for entry in paths {
             let path = entry.path();
             if flags.l {

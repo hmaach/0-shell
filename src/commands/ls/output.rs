@@ -1,6 +1,6 @@
-use crate::commands::ls::{command::Directory, parser::Flag};
+use std::collections::HashMap;
 
-use super::formatter::print;
+use super::{Directory, formatter::format_detailed_file_info, parser::Flag};
 
 pub struct LsOutput;
 
@@ -15,7 +15,7 @@ impl LsOutput {
         // Print files
         if !file_result.is_empty() {
             let mut file_result_clone = file_result.clone();
-            print(&mut file_result_clone, flags);
+            Self::print(&mut file_result_clone, flags);
             if !dir_results.is_empty() {
                 println!();
             }
@@ -32,10 +32,41 @@ impl LsOutput {
             }
 
             let mut entries_clone = dir.entries.clone();
-            print(&mut entries_clone, flags);
+            Self::print(&mut entries_clone, flags);
             if i < directories_length - 1 {
                 println!();
             }
+        }
+    }
+
+    pub fn print(result: &mut Vec<Vec<String>>, flags: &Flag) {
+        let mut max_lens: HashMap<usize, usize> = HashMap::new();
+
+        if flags.l {
+            for path in result.iter() {
+                for (i, field) in path.iter().enumerate() {
+                    let len = field.len();
+                    let entry = max_lens.entry(i).or_insert(0);
+                    if len > *entry {
+                        *entry = len;
+                    }
+                }
+            }
+        }
+
+        for (i, path) in result.iter().enumerate() {
+            if flags.l {
+                println!("{}", format_detailed_file_info(&max_lens, path));
+            } else {
+                print!("{}", path[0]);
+                if i < result.len() - 1 {
+                    print!("  ");
+                }
+            }
+        }
+
+        if !flags.l {
+            println!();
         }
     }
 }

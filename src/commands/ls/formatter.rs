@@ -1,10 +1,13 @@
-use std::os::unix::fs::PermissionsExt;
-use std::path::Path;
-use std::{collections::HashMap, fs, path::PathBuf};
+use std::{
+    collections::HashMap,
+    fs,
+    os::unix::fs::PermissionsExt,
+    path::{Path, PathBuf},
+};
 
-use crate::commands::ls::parser::Flag;
+use super::{file_info::get_detailed_file_info, parser::Flag};
+
 use crate::{
-    commands::ls::file_info::get_detailed_file_info,
     error::ShellError,
     utils::{Color, colorize},
 };
@@ -57,37 +60,6 @@ pub fn format_detailed_file_info(max_lens: &HashMap<usize, usize>, path: &Vec<St
     }
 
     result
-}
-
-pub fn print(result: &mut Vec<Vec<String>>, flags: &Flag) {
-    let mut max_lens: HashMap<usize, usize> = HashMap::new();
-
-    if flags.l {
-        for path in result.iter() {
-            for (i, field) in path.iter().enumerate() {
-                let len = field.len();
-                let entry = max_lens.entry(i).or_insert(0);
-                if len > *entry {
-                    *entry = len;
-                }
-            }
-        }
-    }
-
-    for (i, path) in result.iter().enumerate() {
-        if flags.l {
-            println!("{}", format_detailed_file_info(&max_lens, path));
-        } else {
-            print!("{}", path[0]);
-            if i < result.len() - 1 {
-                print!("  ");
-            }
-        }
-    }
-
-    if !flags.l {
-        println!();
-    }
 }
 
 pub fn format_path(path: &PathBuf, file_name: &mut String, flags: &Flag) -> Result<(), ShellError> {
