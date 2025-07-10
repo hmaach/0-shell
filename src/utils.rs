@@ -1,24 +1,29 @@
 use std::path::PathBuf;
 
+use colored::Colorize;
+
 pub enum Color {
     Red,
+    Orange,
     Green,
     Blue,
-}
-
-impl Color {
-    fn to_code(&self) -> u8 {
-        match self {
-            Color::Red => 31,
-            Color::Green => 32,
-            Color::Blue => 34,
-        }
-    }
+    SkyBlue,
 }
 
 pub fn colorize(text: &str, color: Color, bold: bool) -> String {
-    let bold_prefix = if bold { "1;" } else { "" };
-    format!("\x1b[{}{}m{}\x1b[0m", bold_prefix, color.to_code(), text)
+    let result = match color {
+        Color::Red => text.red(),
+        Color::Green => text.green(),
+        Color::Blue => text.blue(),
+        Color::Orange => text.truecolor(255, 165, 0),
+        Color::SkyBlue => text.truecolor(135, 206, 235),
+    };
+
+    if bold {
+        result.bold().to_string()
+    } else {
+        result.to_string()
+    }
 }
 
 pub fn clean_string(s: String) -> String {
@@ -40,8 +45,8 @@ pub fn print_welcome() {
 "#;
 
     println!();
-    println!("\t\t      {}", colorize("Welcome to", Color::Blue, false));
-    println!("{}", colorize(title, Color::Blue, true));
+    println!("\t\t      {}", colorize("Welcome to", Color::Orange, false));
+    println!("{}", colorize(title, Color::Orange, true));
     println!(
         "\t   {} {} {}",
         colorize("Yassine El Mach", Color::Green, true),
