@@ -14,7 +14,7 @@ pub fn get_detailed_file_info(
 ) -> Result<Vec<String>, ShellError> {
     let metadata = path.symlink_metadata()?;
 
-    let permission = format_permissions(&metadata);
+    let permission = format_permissions(&metadata, &path);
 
     let len = metadata.len().to_string();
 
