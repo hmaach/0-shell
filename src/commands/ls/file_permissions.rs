@@ -1,9 +1,10 @@
 use std::{
     fs::Metadata,
-    os::unix::fs::{FileTypeExt, PermissionsExt}, path::PathBuf,
+    os::unix::fs::{FileTypeExt, MetadataExt, PermissionsExt},
+    path::PathBuf,
 };
 
-pub fn format_permissions(metadata: &Metadata, path: &PathBuf) -> String {
+pub fn get_permissions(metadata: &Metadata, path: &PathBuf) -> String {
     let mode = metadata.permissions().mode();
     let mut permissions = String::new();
 
@@ -42,7 +43,7 @@ pub fn format_permissions(metadata: &Metadata, path: &PathBuf) -> String {
 
     if has_acl(path) {
         permissions.push('+');
-    } 
+    }
 
     permissions
 }
@@ -70,7 +71,7 @@ fn get_file_type(metadata: &Metadata) -> char {
 fn has_acl(path: &PathBuf) -> bool {
     use std::ffi::CString;
     use std::os::raw::c_char;
-    
+
     unsafe extern "C" {
         fn getxattr(
             path: *const c_char,
@@ -79,22 +80,22 @@ fn has_acl(path: &PathBuf) -> bool {
             size: usize,
         ) -> isize;
     }
-    
+
     let path_str = match path.to_str() {
         Some(s) => s,
         None => return false,
     };
-    
+
     let c_path = match CString::new(path_str) {
         Ok(p) => p,
         Err(_) => return false,
     };
-    
+
     let acl_access = match CString::new("system.posix_acl_access") {
         Ok(attr) => attr,
         Err(_) => return false,
     };
-    
+
     unsafe {
         // Check if the file has POSIX ACL extended attribute
         let size = getxattr(
@@ -103,9 +104,23 @@ fn has_acl(path: &PathBuf) -> bool {
             std::ptr::null_mut(),
             0,
         );
-        
+
         // If size > 0, ACLs are present
         // If size == -1, no ACLs or error
         size > 0
     }
+}
+
+pub fn get_major_minor(metadata: &Metadata) -> (u64, u64) {
+    // Get the raw device number
+    let dev = metadata.rdev();
+
+    // Linux uses a specific bit layout for device numbers
+    // Major number is in bits 8-19 and 32-63
+    let major = ((dev >> 8) & 0xfff) | ((dev >> 32) & !0xfff);
+
+    // Minor number is in bits 0-7 and 20-31
+    let minor = (dev & 0xff) | ((dev >> 12) & !0xff);
+
+    (major, minor)
 }
