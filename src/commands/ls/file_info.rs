@@ -27,7 +27,7 @@ pub fn get_detailed_file_info(
             ShellError::Other(format!("Unable to get file name for path: {:?}", path))
         })?;
 
-    let _ = format_path(path, &mut file_name, flags);
+    format_path(path, &mut file_name, flags)?;
 
     let (owner_name, group_name) = get_owner_info(&metadata)
         .map_err(|e| ShellError::Other(format!("cannot access '{}': {}", path.display(), e)))?;

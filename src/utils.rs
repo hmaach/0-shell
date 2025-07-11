@@ -1,30 +1,6 @@
 use std::path::PathBuf;
 
-use colored::Colorize;
-
-pub enum Color {
-    Red,
-    Orange,
-    Green,
-    Blue,
-    SkyBlue,
-}
-
-pub fn colorize(text: &str, color: Color, bold: bool) -> String {
-    let result = match color {
-        Color::Red => text.red(),
-        Color::Green => text.green(),
-        Color::Blue => text.blue(),
-        Color::Orange => text.truecolor(255, 165, 0),
-        Color::SkyBlue => text.truecolor(135, 206, 235),
-    };
-
-    if bold {
-        result.bold().to_string()
-    } else {
-        result.to_string()
-    }
-}
+use crate::color::{Color, colorize};
 
 pub fn clean_string(s: String) -> String {
     s.chars()

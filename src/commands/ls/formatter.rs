@@ -8,8 +8,8 @@ use std::{
 use super::{file_info::get_detailed_file_info, parser::Flag};
 
 use crate::{
+    color::{Color, colorize, colorize_dir, colorize_executable, colorize_symlink},
     error::ShellError,
-    utils::{Color, colorize},
 };
 
 pub fn add_dot_entries(
@@ -17,13 +17,11 @@ pub fn add_dot_entries(
     total_blocks: &mut u64,
     flags: &Flag,
 ) -> Result<(), ShellError> {
-    let mut dot = format!("{}", colorize(".", Color::Blue, true));
-    let mut dotdot = format!("{}", colorize("..", Color::Blue, true));
+    let mut dot = ".".to_owned();
+    let mut dotdot = "..".to_owned();
 
-    if flags.f {
-        dot.push('/');
-        dotdot.push('/');
-    };
+    colorize_dir(&mut dot, flags);
+    colorize_dir(&mut dotdot, flags);
 
     if flags.l {
         let dot_path = PathBuf::from(".");
@@ -84,34 +82,9 @@ fn is_executable(mode: u32) -> bool {
     mode & 0o111 != 0
 }
 
-fn colorize_dir(file_name: &mut String, flags: &Flag) {
-    *file_name = colorize(file_name, Color::Blue, true);
-    if flags.f {
-        file_name.push('/');
-    }
-}
-
-fn colorize_executable(file_name: &mut String, flags: &Flag) {
-    *file_name = colorize(file_name, Color::Green, true);
-    if flags.f {
-        file_name.push('*');
-    }
-}
-
 fn format_symlink(path: &PathBuf, file_name: &mut String, flags: &Flag) -> Result<(), ShellError> {
     let is_broken = fs::metadata(path).is_err();
-
-    let color = if is_broken {
-        Color::Red
-    } else {
-        Color::SkyBlue
-    };
-
-    *file_name = colorize(file_name, color, true);
-
-    if flags.f && !flags.l {
-        file_name.push('@');
-    }
+    colorize_symlink(file_name, is_broken, flags);
 
     if flags.l {
         if let Ok(target) = fs::read_link(path) {
@@ -124,10 +97,10 @@ fn format_symlink(path: &PathBuf, file_name: &mut String, flags: &Flag) -> Resul
             let mut target_str = target.to_string_lossy().to_string();
 
             if fs::metadata(&full_target_path).is_err() {
-                target_str = colorize(&target_str, Color::Red, true);
+                colorize_symlink(&mut target_str, true, flags);
             } else if !target.is_symlink() {
                 let _ = format_path(&full_target_path, &mut target_str, flags);
-            }
+            } // here I need to put formatting for the the symlink
 
             file_name.push_str(" -> ");
             file_name.push_str(&target_str);

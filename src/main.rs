@@ -2,6 +2,7 @@ mod commands;
 mod error;
 mod shell;
 mod parser;
+mod color;
 mod utils;
 
 fn main() {
