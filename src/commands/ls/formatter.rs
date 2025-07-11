@@ -1,20 +1,23 @@
 use std::{
     collections::HashMap,
     fs,
-    os::unix::fs::PermissionsExt,
+    os::unix::fs::{FileTypeExt, PermissionsExt},
     path::{Path, PathBuf},
 };
 
 use super::{file_info::get_detailed_file_info, parser::Flag};
 
 use crate::{
-    color::{Color, colorize, colorize_dir, colorize_executable, colorize_symlink},
+    color::{
+        Color, colorize, colorize_device, colorize_dir, colorize_executable, colorize_symlink,
+    },
     error::ShellError,
 };
 
 pub fn add_dot_entries(
     result: &mut Vec<Vec<String>>,
     total_blocks: &mut u64,
+    max_len: &mut usize,
     flags: &Flag,
 ) -> Result<(), ShellError> {
     let mut dot = ".".to_owned();
@@ -27,8 +30,9 @@ pub fn add_dot_entries(
         let dot_path = PathBuf::from(".");
         let dotdot_path = PathBuf::from("..");
 
-        let mut dot_info = get_detailed_file_info(&dot_path, Some(total_blocks), flags)?;
-        let mut dotdot_info = get_detailed_file_info(&dotdot_path, Some(total_blocks), flags)?;
+        let mut dot_info = get_detailed_file_info(&dot_path, Some(total_blocks), max_len, flags)?;
+        let mut dotdot_info =
+            get_detailed_file_info(&dotdot_path, Some(total_blocks), max_len, flags)?;
 
         dot_info[6] = dot;
         dotdot_info[6] = dotdot;
@@ -42,7 +46,11 @@ pub fn add_dot_entries(
     Ok(())
 }
 
-pub fn format_detailed_file_info(max_lens: &HashMap<usize, usize>, path: &Vec<String>) -> String {
+pub fn format_detailed_file_info(
+    max_lens: &HashMap<usize, usize>,
+    path: &Vec<String>,
+    max_size_len: &usize,
+) -> String {
     let mut result = String::new();
 
     for (i, info) in path.iter().enumerate() {
@@ -50,8 +58,18 @@ pub fn format_detailed_file_info(max_lens: &HashMap<usize, usize>, path: &Vec<St
 
         if i == path.len() - 1 {
             result.push_str(info);
-        } else if i == 1 || i == 4 {
+        } else if i == 1 {
             result.push_str(&format!("{:>width$} ", info, width = max_width));
+        } else if i == 4 {
+            if info.contains(",") {
+                let parts: Vec<&str> = info.split(',').collect();
+                let spaces_to_add = max_size_len - info.len();
+                let spaces: String = std::iter::repeat(' ').take(spaces_to_add).collect();
+                let formatted = format!("{}, {}{}", parts[0].trim(), spaces, parts[1].trim());
+                result.push_str(&format!("{:>width$} ", formatted, width = max_width));
+            } else {
+                result.push_str(&format!("{:>width$} ", info, width = max_width));
+            }
         } else {
             result.push_str(&format!("{:<width$} ", info, width = max_width));
         }
@@ -69,6 +87,8 @@ pub fn format_path(path: &PathBuf, file_name: &mut String, flags: &Flag) -> Resu
     } else if path.is_dir() {
         colorize_dir(file_name, flags);
         return Ok(());
+    } else if metadata.file_type().is_block_device() || metadata.file_type().is_char_device() {
+        colorize_device(file_name, flags);
     }
 
     if is_executable(mode) {
@@ -82,7 +102,7 @@ fn is_executable(mode: u32) -> bool {
     mode & 0o111 != 0
 }
 
-fn format_symlink(path: &PathBuf, file_name: &mut String, flags: &Flag) -> Result<(), ShellError> {
+fn format_symlink(path: &Path, file_name: &mut String, flags: &Flag) -> Result<(), ShellError> {
     let is_broken = fs::metadata(path).is_err();
     colorize_symlink(file_name, is_broken, flags);
 

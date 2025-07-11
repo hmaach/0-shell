@@ -8,6 +8,7 @@ pub enum Color {
     Green,
     Blue,
     SkyBlue,
+    Brown,
 }
 
 pub fn colorize(text: &str, color: Color, bold: bool) -> String {
@@ -17,6 +18,7 @@ pub fn colorize(text: &str, color: Color, bold: bool) -> String {
         Color::Blue => text.blue(),
         Color::Orange => text.truecolor(255, 165, 0),
         Color::SkyBlue => text.truecolor(135, 206, 235),
+        Color::Brown => text.truecolor(156, 109, 71),
     };
 
     if bold {
@@ -24,6 +26,11 @@ pub fn colorize(text: &str, color: Color, bold: bool) -> String {
     } else {
         result.to_string()
     }
+}
+
+pub fn colorize_device(file_name: &mut String, _flags: &Flag) {
+    let styled = colorize(file_name, Color::Brown, true);
+    *file_name = styled.on_black().to_string();
 }
 
 pub fn colorize_dir(file_name: &mut String, flags: &Flag) {

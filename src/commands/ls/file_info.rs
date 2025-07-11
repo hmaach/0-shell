@@ -1,22 +1,42 @@
 use chrono::{DateTime, Duration, TimeZone, Utc};
 use chrono_tz::Africa::Casablanca;
 
-use std::{ffi::CStr, fs::Metadata, os::unix::fs::MetadataExt, path::PathBuf};
+use std::{
+    ffi::CStr,
+    fs::Metadata,
+    os::unix::fs::{FileTypeExt, MetadataExt},
+    path::PathBuf,
+};
 
-use super::{file_permissions::format_permissions, formatter::format_path, parser::Flag};
+use super::{file_permissions::get_permissions, formatter::format_path, parser::Flag};
 
-use crate::error::ShellError;
+use crate::{commands::ls::file_permissions::get_major_minor, error::ShellError};
 
 pub fn get_detailed_file_info(
     path: &PathBuf,
     total_blocks: Option<&mut u64>,
+    max_len: &mut usize,
     flags: &Flag,
 ) -> Result<Vec<String>, ShellError> {
     let metadata = path.symlink_metadata()?;
 
-    let permission = format_permissions(&metadata, &path);
+    let permission = get_permissions(&metadata, &path);
 
-    let len = metadata.len().to_string();
+    let size = if metadata.file_type().is_char_device() || metadata.file_type().is_block_device() {
+        let (major, minor) = get_major_minor(&metadata);
+        let mut res = String::new();
+
+        res.push_str(&major.to_string());
+        res.push_str(", ");
+        res.push_str(&minor.to_string());
+        res
+    } else {
+        metadata.len().to_string()
+    };
+
+    if size.len() > *max_len {
+        *max_len = size.len();
+    }
 
     let mut file_name = path
         .file_name()
@@ -45,7 +65,7 @@ pub fn get_detailed_file_info(
         n_link,
         user_owner,
         group_owner,
-        len,
+        size,
         modified_at,
         file_name,
     ])

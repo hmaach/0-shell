@@ -10,12 +10,13 @@ impl LsOutput {
         dir_results: &Vec<Directory>,
         directories_length: &usize,
         files_length: &usize,
+        max_files_len: &usize,
         flags: &Flag,
     ) {
         // Print files
         if !file_result.is_empty() {
             let mut file_result_clone = file_result.clone();
-            Self::print(&mut file_result_clone, flags);
+            Self::print(&mut file_result_clone, max_files_len, flags);
             if !dir_results.is_empty() {
                 println!();
             }
@@ -32,14 +33,14 @@ impl LsOutput {
             }
 
             let mut entries_clone = dir.entries.clone();
-            Self::print(&mut entries_clone, flags);
+            Self::print(&mut entries_clone, &dir.max_len, flags);
             if i < directories_length - 1 {
                 println!();
             }
         }
     }
 
-    pub fn print(result: &mut Vec<Vec<String>>, flags: &Flag) {
+    pub fn print(result: &mut Vec<Vec<String>>, max_size_len: &usize, flags: &Flag) {
         let mut max_lens: HashMap<usize, usize> = HashMap::new();
 
         if flags.l {
@@ -56,7 +57,10 @@ impl LsOutput {
 
         for (i, path) in result.iter().enumerate() {
             if flags.l {
-                println!("{}", format_detailed_file_info(&max_lens, path));
+                println!(
+                    "{}",
+                    format_detailed_file_info(&max_lens, path, &max_size_len)
+                );
             } else {
                 print!("{}", path[0]);
                 if i < result.len() - 1 {
