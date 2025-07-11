@@ -1,9 +1,9 @@
 use std::{
     fs::Metadata,
-    os::unix::fs::{FileTypeExt, PermissionsExt},
+    os::unix::fs::{FileTypeExt, PermissionsExt}, path::PathBuf,
 };
 
-pub fn format_permissions(metadata: &Metadata) -> String {
+pub fn format_permissions(metadata: &Metadata, path: &PathBuf) -> String {
     let mode = metadata.permissions().mode();
     let mut permissions = String::new();
 
@@ -40,6 +40,10 @@ pub fn format_permissions(metadata: &Metadata) -> String {
         (false, false) => '-',
     });
 
+    if has_acl(path) {
+        permissions.push('+');
+    } 
+
     permissions
 }
 
@@ -60,5 +64,48 @@ fn get_file_type(metadata: &Metadata) -> char {
         's'
     } else {
         '-'
+    }
+}
+
+fn has_acl(path: &PathBuf) -> bool {
+    use std::ffi::CString;
+    use std::os::raw::c_char;
+    
+    unsafe extern "C" {
+        fn getxattr(
+            path: *const c_char,
+            name: *const c_char,
+            value: *mut std::ffi::c_void,
+            size: usize,
+        ) -> isize;
+    }
+    
+    let path_str = match path.to_str() {
+        Some(s) => s,
+        None => return false,
+    };
+    
+    let c_path = match CString::new(path_str) {
+        Ok(p) => p,
+        Err(_) => return false,
+    };
+    
+    let acl_access = match CString::new("system.posix_acl_access") {
+        Ok(attr) => attr,
+        Err(_) => return false,
+    };
+    
+    unsafe {
+        // Check if the file has POSIX ACL extended attribute
+        let size = getxattr(
+            c_path.as_ptr(),
+            acl_access.as_ptr(),
+            std::ptr::null_mut(),
+            0,
+        );
+        
+        // If size > 0, ACLs are present
+        // If size == -1, no ACLs or error
+        size > 0
     }
 }
