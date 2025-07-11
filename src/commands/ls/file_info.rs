@@ -29,7 +29,7 @@ pub fn get_detailed_file_info(
 
     format_path(path, &mut file_name, flags)?;
 
-    let (owner_name, group_name) = get_owner_info(&metadata)
+    let (user_owner, group_owner) = get_owners_info(&metadata)
         .map_err(|e| ShellError::Other(format!("cannot access '{}': {}", path.display(), e)))?;
 
     let n_link = metadata.nlink().to_string();
@@ -43,8 +43,8 @@ pub fn get_detailed_file_info(
     Ok(vec![
         permission,
         n_link,
-        owner_name,
-        group_name,
+        user_owner,
+        group_owner,
         len,
         modified_at,
         file_name,
@@ -71,7 +71,7 @@ fn get_modified_at(metadata: &Metadata) -> String {
     }
 }
 
-fn get_owner_info(metadata: &Metadata) -> Result<(String, String), ShellError> {
+fn get_owners_info(metadata: &Metadata) -> Result<(String, String), ShellError> {
     let uid = metadata.uid();
     let gid = metadata.gid();
 
