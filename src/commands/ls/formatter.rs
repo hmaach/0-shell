@@ -15,20 +15,21 @@ use crate::{
 };
 
 pub fn add_dot_entries(
+    dir: &PathBuf,
     result: &mut Vec<Vec<String>>,
     total_blocks: &mut u64,
     max_len: &mut usize,
     flags: &Flag,
 ) -> Result<(), ShellError> {
-    let mut dot = ".".to_owned();
+    let mut dot: String = ".".to_owned();
     let mut dotdot = "..".to_owned();
 
     colorize_dir(&mut dot, flags);
     colorize_dir(&mut dotdot, flags);
 
     if flags.l {
-        let dot_path = PathBuf::from(".");
-        let dotdot_path = PathBuf::from("..");
+        let dot_path = dir.join(PathBuf::from("."));
+        let dotdot_path = dir.join(PathBuf::from("."));
 
         let mut dot_info = get_detailed_file_info(&dot_path, Some(total_blocks), max_len, flags)?;
         let mut dotdot_info =
@@ -38,7 +39,7 @@ pub fn add_dot_entries(
         dotdot_info[6] = dotdot;
 
         result.insert(0, dotdot_info);
-        result.insert(0, dot_info);
+        result.insert(0, dot_info); // tartib
     } else {
         result.insert(0, vec![dotdot]);
         result.insert(0, vec![dot]);

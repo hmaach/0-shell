@@ -56,6 +56,7 @@ impl LsProcessor {
 
             if flags.a {
                 add_dot_entries(
+                    dir,
                     &mut dir_entry_result,
                     &mut total_blocks,
                     &mut max_len,
