@@ -92,14 +92,14 @@ pub fn format_path(path: &PathBuf, file_name: &mut String, flags: &Flag) -> Resu
         colorize_device(file_name, flags);
     }
 
-    if is_executable(mode) {
+    if is_executable(&mode) {
         colorize_executable(file_name, flags);
     }
 
     Ok(())
 }
 
-fn is_executable(mode: u32) -> bool {
+fn is_executable(mode: &u32) -> bool {
     mode & 0o111 != 0
 }
 
@@ -119,9 +119,17 @@ fn format_symlink(path: &Path, file_name: &mut String, flags: &Flag) -> Result<(
 
             if fs::metadata(&full_target_path).is_err() {
                 colorize_symlink(&mut target_str, true, flags);
-            } else if !target.is_symlink() {
+            } else if target.is_symlink() {
+                let metadata = target.symlink_metadata()?;
+                let mode = metadata.permissions().mode();
+                if metadata.is_dir() {
+                    colorize_dir(file_name, flags);
+                } else if is_executable(&mode) {
+                    colorize_executable(&mut target_str, flags);
+                }
+            } else {
                 let _ = format_path(&full_target_path, &mut target_str, flags);
-            } // here I need to put formatting for the the symlink
+            }
 
             file_name.push_str(" -> ");
             file_name.push_str(&target_str);
