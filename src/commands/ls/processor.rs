@@ -7,7 +7,7 @@ use super::{
     parser::Flag,
 };
 
-use crate::{error::ShellError, utils::clean_string};
+use crate::{commands::ls::formatter::quote_if_needed, error::ShellError, utils::clean_string};
 
 pub struct LsProcessor;
 
@@ -23,13 +23,13 @@ impl LsProcessor {
                 let info = get_detailed_file_info(file, None, max_len, flags)?;
                 file_result.push(info);
             } else {
-                let name = file
+                let mut name = file
                     .to_str()
                     .ok_or_else(|| {
                         ShellError::Other(format!("ls: Invalid UTF-8 path: {}", file.display()))
                     })?
                     .to_string();
-
+                quote_if_needed(&mut name);
                 file_result.push(vec![name]);
             }
         }
@@ -137,7 +137,8 @@ impl LsProcessor {
                         ))
                     })?
                     .to_string();
-
+                
+                quote_if_needed(&mut name);
                 format_path(&path, &mut name, flags)?;
 
                 dir_entry_result.push(vec![name]);

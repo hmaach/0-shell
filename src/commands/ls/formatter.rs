@@ -133,3 +133,18 @@ fn format_symlink(path: &Path, file_name: &mut String, flags: &Flag) -> Result<(
 
     Ok(())
 }
+
+pub fn quote_if_needed(name: &mut String) {
+    let unsafe_chars = [
+        ' ', '\t', '\n', '\'', '"', '$', '`', '\\', '!', '*', '?', '&', ';', '|', '<', '>', '(',
+        ')', '[', ']', '{', '}', '~', '#',
+    ];
+
+    if name.chars().any(|c| unsafe_chars.contains(&c)) {
+        let quote = if name.contains("'") { '"' } else { '\'' };
+        name.push(quote);
+        let mut temp_str: String = String::from(quote);
+        temp_str.push_str(name.as_str());
+        *name = temp_str;
+    }
+}

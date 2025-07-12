@@ -10,7 +10,10 @@ use std::{
 
 use super::{file_permissions::get_permissions, formatter::format_path, parser::Flag};
 
-use crate::{commands::ls::file_permissions::get_major_minor, error::ShellError};
+use crate::{
+    commands::ls::{file_permissions::get_major_minor, formatter::quote_if_needed},
+    error::ShellError,
+};
 
 pub fn get_detailed_file_info(
     path: &PathBuf,
@@ -47,6 +50,7 @@ pub fn get_detailed_file_info(
             ShellError::Other(format!("Unable to get file name for path: {:?}", path))
         })?;
 
+    quote_if_needed(&mut file_name);
     format_path(path, &mut file_name, flags)?;
 
     let (user_owner, group_owner) = get_owners_info(&metadata)
