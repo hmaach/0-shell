@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use terminal_size::{Width, terminal_size};
+
 use super::{Directory, formatter::format_detailed_file_info, parser::Flag};
 
 pub struct LsOutput;
@@ -40,7 +42,18 @@ impl LsOutput {
         }
     }
 
-    pub fn print(result: &mut Vec<Vec<String>>, max_size_len: &usize, flags: &Flag) {
+    fn format_result(result: &Vec<Vec<String>>, _term_width: &usize) -> String {
+        let mut res = String::new();
+        for (i, path) in result.iter().enumerate() {
+            res.push_str(&path[0]);
+            if i < result.len() - 1 {
+                res.push_str("  ");
+            }
+        }
+        res
+    }
+
+    fn print(result: &mut Vec<Vec<String>>, max_size_len: &usize, flags: &Flag) {
         let mut max_lens: HashMap<usize, usize> = HashMap::new();
 
         if flags.l {
@@ -53,24 +66,22 @@ impl LsOutput {
                     }
                 }
             }
-        }
-
-        for (i, path) in result.iter().enumerate() {
-            if flags.l {
+            for path in result.iter() {
                 println!(
                     "{}",
                     format_detailed_file_info(&max_lens, path, &max_size_len)
                 );
-            } else {
-                print!("{}", path[0]);
-                if i < result.len() - 1 {
-                    print!("  ");
-                }
             }
-        }
+        } else {
+            let term_width = if let Some((Width(w), _)) = terminal_size() {
+                w as usize
+            } else {
+                100
+            };
 
-        if !flags.l {
-            println!();
+            let res = Self::format_result(result, &term_width);
+
+            print!("{res}");
         }
     }
 }
