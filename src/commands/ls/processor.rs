@@ -79,6 +79,14 @@ impl LsProcessor {
                 max_len,
             });
         }
+
+        // sort directories
+        dir_results.sort_by(|a, b| {
+            let a_name = clean_string(a.path.to_string_lossy().to_uppercase());
+            let b_name = clean_string(b.path.to_string_lossy().to_uppercase());
+            a_name.cmp(&b_name)
+        });
+
         Ok(())
     }
 
