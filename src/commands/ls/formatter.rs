@@ -83,6 +83,15 @@ pub fn format_path(path: &PathBuf, file_name: &mut String, flags: &Flag) -> Resu
     let metadata = path.symlink_metadata()?;
     let mode = metadata.permissions().mode();
 
+    if flags.f {
+        let file_type = metadata.file_type();
+        if file_type.is_fifo() {
+            file_name.push('|');
+        } else if file_type.is_socket() {
+            file_name.push('=');
+        }
+    }
+
     if path.is_symlink() {
         return format_symlink(path, file_name, flags);
     } else if path.is_dir() {
