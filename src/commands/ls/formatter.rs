@@ -29,7 +29,7 @@ pub fn add_dot_entries(
 
     if flags.l {
         let dot_path = dir.join(PathBuf::from("."));
-        let dotdot_path = dir.join(PathBuf::from("."));
+        let dotdot_path = dir.join(PathBuf::from(".."));
 
         let mut dot_info = get_detailed_file_info(&dot_path, Some(total_blocks), max_len, flags)?;
         let mut dotdot_info =
