@@ -1,36 +1,19 @@
-use std::path::PathBuf;
+use std::{env, path::PathBuf};
 
-use colored::Colorize;
+use regex::Regex;
 
-pub enum Color {
-    Red,
-    Orange,
-    Green,
-    Blue,
-    SkyBlue,
-}
-
-pub fn colorize(text: &str, color: Color, bold: bool) -> String {
-    let result = match color {
-        Color::Red => text.red(),
-        Color::Green => text.green(),
-        Color::Blue => text.blue(),
-        Color::Orange => text.truecolor(255, 165, 0),
-        Color::SkyBlue => text.truecolor(135, 206, 235),
-    };
-
-    if bold {
-        result.bold().to_string()
-    } else {
-        result.to_string()
-    }
-}
+use crate::color::{Color, colorize};
 
 pub fn clean_string(s: String) -> String {
     s.chars()
         .filter(|c| c.is_alphanumeric())
         .collect::<String>()
         .to_uppercase()
+}
+
+pub fn strip_ansi_codes(s: &str) -> String {
+    let re = Regex::new(r"\x1b\[[0-9;]*m").unwrap();
+    re.replace_all(s, "").to_string()
 }
 
 // I get it from here "https://patorjk.com/software/taag"
@@ -57,14 +40,18 @@ pub fn print_welcome() {
 }
 
 pub fn print_cur_dir(path: PathBuf) {
-    let dir_name = path
-        .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or("~");
+    let current_path = path.to_string_lossy();
+    let home_dir = env::var("HOME").unwrap_or_else(|_| "/".to_string());
+
+    let display_path = if current_path.starts_with(&home_dir) {
+        current_path.replacen(&home_dir, "~", 1)
+    } else {
+        current_path.to_string()
+    };
 
     let prompt = format!(
         "{} {} ",
-        colorize(&format!("{dir_name}"), Color::Blue, true),
+        colorize(&format!("{display_path}"), Color::Blue, true),
         colorize("➤", Color::Red, true)
     );
 

@@ -3,10 +3,12 @@ use std::path::PathBuf;
 use crate::{
     commands::{
         Command,
-        ls::{output::LsOutput, parser::Flag, processor::LsProcessor},
+        ls::{output::LsOutput, processor::LsProcessor},
     },
     error::ShellError,
 };
+
+pub use crate::commands::ls::parser::Flag;
 
 mod file_info;
 mod file_permissions;
@@ -19,6 +21,7 @@ mod processor;
 pub struct Directory {
     pub path: PathBuf,
     pub entries: Vec<Vec<String>>,
+    pub max_len: usize,
     pub total_blocks: u64,
 }
 
@@ -36,8 +39,8 @@ impl Command for LsCommand {
         if directories.is_empty() && files.is_empty() {
             directories.push(PathBuf::from("."));
         }
-
-        LsProcessor::process_files(&files, &flags, &mut file_result)?;
+        let mut max_files_len = 0;
+        LsProcessor::process_files(&files, &flags, &mut max_files_len, &mut file_result)?;
         LsProcessor::process_directories(&directories, &flags, &mut dir_results)?;
 
         LsOutput::print_results(
@@ -45,6 +48,7 @@ impl Command for LsCommand {
             &dir_results,
             &directories.len(),
             &files.len(),
+            &max_files_len,
             &flags,
         );
 

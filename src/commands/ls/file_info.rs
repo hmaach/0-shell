@@ -1,22 +1,45 @@
 use chrono::{DateTime, Duration, TimeZone, Utc};
 use chrono_tz::Africa::Casablanca;
 
-use std::{ffi::CStr, fs::Metadata, os::unix::fs::MetadataExt, path::PathBuf};
+use std::{
+    ffi::CStr,
+    fs::Metadata,
+    os::unix::fs::{FileTypeExt, MetadataExt},
+    path::PathBuf,
+};
 
-use super::{file_permissions::format_permissions, formatter::format_path, parser::Flag};
+use super::{file_permissions::get_permissions, formatter::format_path, parser::Flag};
 
-use crate::error::ShellError;
+use crate::{
+    commands::ls::{file_permissions::get_major_minor, formatter::quote_if_needed},
+    error::ShellError,
+};
 
 pub fn get_detailed_file_info(
     path: &PathBuf,
     total_blocks: Option<&mut u64>,
+    max_len: &mut usize,
     flags: &Flag,
 ) -> Result<Vec<String>, ShellError> {
     let metadata = path.symlink_metadata()?;
 
-    let permission = format_permissions(&metadata, &path);
+    let permission = get_permissions(&metadata, &path);
 
-    let len = metadata.len().to_string();
+    let size = if metadata.file_type().is_char_device() || metadata.file_type().is_block_device() {
+        let (major, minor) = get_major_minor(&metadata);
+        let mut res = String::new();
+
+        res.push_str(&major.to_string());
+        res.push_str(", ");
+        res.push_str(&minor.to_string());
+        res
+    } else {
+        metadata.len().to_string()
+    };
+
+    if size.len() > *max_len {
+        *max_len = size.len();
+    }
 
     let mut file_name = path
         .file_name()
@@ -27,9 +50,10 @@ pub fn get_detailed_file_info(
             ShellError::Other(format!("Unable to get file name for path: {:?}", path))
         })?;
 
-    let _ = format_path(path, &mut file_name, flags);
+    quote_if_needed(&mut file_name);
+    format_path(path, &mut file_name, flags)?;
 
-    let (owner_name, group_name) = get_owner_info(&metadata)
+    let (user_owner, group_owner) = get_owners_info(&metadata)
         .map_err(|e| ShellError::Other(format!("cannot access '{}': {}", path.display(), e)))?;
 
     let n_link = metadata.nlink().to_string();
@@ -43,9 +67,9 @@ pub fn get_detailed_file_info(
     Ok(vec![
         permission,
         n_link,
-        owner_name,
-        group_name,
-        len,
+        user_owner,
+        group_owner,
+        size,
         modified_at,
         file_name,
     ])
@@ -71,7 +95,7 @@ fn get_modified_at(metadata: &Metadata) -> String {
     }
 }
 
-fn get_owner_info(metadata: &Metadata) -> Result<(String, String), ShellError> {
+fn get_owners_info(metadata: &Metadata) -> Result<(String, String), ShellError> {
     let uid = metadata.uid();
     let gid = metadata.gid();
 
